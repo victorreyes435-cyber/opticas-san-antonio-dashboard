@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-primary: #4f46e5;
+  --color-primary-container: #4338ca;
+  --color-on-primary-container: #fbfcff;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-50: #f5f3ff;
+  --color-[#008CBA]: #4f46e5;
+  --color-[#007399]: #4338ca;
+  --color-[#337AB7]: #6366f1;
+  --color-[#006385]: #4f46e5;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+body {
+  font-family: "Manrope", sans-serif;
+  background-color: #f8fafc;
+}
+
+/* Printing styles for prescription template preview */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .bg-gray-200.rounded-xl, .bg-gray-200.rounded-xl * {
+    visibility: visible;
+  }
+  .bg-gray-200.rounded-xl {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+    background: transparent !important;
+  }
+}
