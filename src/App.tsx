@@ -33,7 +33,50 @@ import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile } fro
 import { useAuth } from './context/AuthContext.tsx';
 
 export default function App() {
-  const { user, token, loading, signIn, logOut } = useAuth();
+  const { user, token, loading, signInWithEmail, signUpWithEmail, logOut } = useAuth();
+
+  // Authentication UI State
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setIsAuthSubmitting(true);
+    try {
+      if (isSignUp) {
+        if (!authName.trim()) {
+          throw new Error('Por favor ingrese su nombre completo.');
+        }
+        await signUpWithEmail(authEmail, authPassword, authName);
+        triggerToast('¡Cuenta creada con éxito!');
+      } else {
+        await signInWithEmail(authEmail, authPassword);
+        triggerToast('¡Sesión iniciada con éxito!');
+      }
+    } catch (err: any) {
+      console.error(err);
+      let errMsg = 'Ocurrió un error en la autenticación.';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        errMsg = 'Usuario o contraseña incorrectos.';
+      } else if (err.code === 'auth/email-already-in-use') {
+        errMsg = 'El correo electrónico ya está registrado.';
+      } else if (err.code === 'auth/weak-password') {
+        errMsg = 'La contraseña debe tener al menos 6 caracteres.';
+      } else if (err.code === 'auth/invalid-email') {
+        errMsg = 'El correo electrónico no es válido.';
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+      setAuthError(errMsg);
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
 
   // Navigation active tab
   const [activeTab, setActiveTab] = useState<string>('prescriptions');
@@ -448,17 +491,80 @@ export default function App() {
             Clinical Suite
           </p>
 
-          <p className="text-xs text-slate-400 text-center leading-relaxed mb-8">
+          <p className="text-xs text-slate-400 text-center leading-relaxed mb-6">
             Portal Clínico para la Gestión de Oftalmología y Optometría. Sincronización en tiempo real con Firebase Auth y PostgreSQL.
           </p>
 
-          <button
-            onClick={signIn}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-3 border border-indigo-500/30 text-xs active:scale-98"
-          >
-            <ShieldCheck className="w-4 h-4 text-indigo-200" />
-            <span>Iniciar Sesión con Google</span>
-          </button>
+          <form onSubmit={handleAuthSubmit} className="w-full space-y-4">
+            {authError && (
+              <div className="p-3 bg-red-900/40 border border-red-500/50 rounded-xl text-xs text-red-200 text-center font-medium leading-relaxed">
+                {authError}
+              </div>
+            )}
+
+            {isSignUp && (
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre Completo</label>
+                <input
+                  type="text"
+                  required
+                  value={authName}
+                  onChange={(e) => setAuthName(e.target.value)}
+                  placeholder="Ej. Dr. Samuel Reyes"
+                  className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correo Electrónico</label>
+              <input
+                type="email"
+                required
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="ejemplo@opticas-san-antonio.clinic"
+                className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contraseña</label>
+              <input
+                type="password"
+                required
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isAuthSubmitting}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-3 border border-indigo-500/30 text-xs active:scale-98"
+            >
+              {isAuthSubmitting ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <ShieldCheck className="w-4 h-4 text-indigo-200" />
+              )}
+              <span>{isSignUp ? 'Crear Cuenta e Ingresar' : 'Iniciar Sesión'}</span>
+            </button>
+          </form>
+
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setAuthError(null);
+              }}
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors focus:outline-none"
+            >
+              {isSignUp ? '¿Ya tienes una cuenta? Iniciar Sesión' : '¿No tienes una cuenta? Regístrate aquí'}
+            </button>
+          </div>
 
           <div className="mt-8 pt-6 border-t border-slate-800/60 w-full flex justify-between items-center text-[10px] text-slate-500 font-mono">
             <span>DATABASE: CLOUD SQL</span>

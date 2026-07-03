@@ -1,12 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleAuthProvider } from '../lib/firebase.ts';
+import { 
+  User, 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile, 
+  signOut 
+} from 'firebase/auth';
+import { auth } from '../lib/firebase.ts';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  signIn: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   logOut: () => Promise<void>;
 }
 
@@ -32,11 +40,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const signIn = async () => {
+  const signInWithEmail = async (email: string, password: string) => {
     try {
-      await signInWithPopup(auth, googleAuthProvider);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       console.error('Sign in failed:', error);
+      throw error;
+    }
+  };
+
+  const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, {
+          displayName: displayName
+        });
+        // Force refresh token to include updated profile info
+        const idToken = await userCredential.user.getIdToken(true);
+        setToken(idToken);
+        setUser({ ...userCredential.user });
+      }
+    } catch (error) {
+      console.error('Sign up failed:', error);
+      throw error;
     }
   };
 
@@ -49,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signIn, logOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signInWithEmail, signUpWithEmail, logOut }}>
       {children}
     </AuthContext.Provider>
   );
