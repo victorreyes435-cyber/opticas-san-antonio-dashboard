@@ -561,7 +561,7 @@ export default function PrescriptionsView({
           
           {/* Real-time PDF layout view block */}
           <div className="bg-slate-100 rounded-xl p-3 shadow-inner border border-slate-200 flex flex-col min-h-[480px]">
-            <div className="bg-white rounded-lg p-5 flex flex-col flex-grow text-xs border border-slate-200 relative overflow-hidden select-none">
+            <div id="prescription-print-area" className="bg-white rounded-lg p-5 flex flex-col flex-grow text-xs border border-slate-200 relative overflow-hidden">
               
               {/* Ópticas San Antonio Print Head */}
               <div className="text-center border-b border-slate-100 pb-3.5 mb-3.5">
@@ -618,21 +618,30 @@ export default function PrescriptionsView({
                 <p><span className="font-bold text-slate-800">Tipo de Lente:</span> {lensType === 'Single Vision' ? 'Monofocal' : lensType === 'Bifocal' ? 'Bifocal' : 'Progresivo'}</p>
                 <p className="line-clamp-2"><span className="font-bold text-slate-800">Opciones:</span> {getSelectedOptionsText()}</p>
                 {clinicalNotes && (
-                  <p className="italic text-slate-400 mt-2 line-clamp-2">
+                  <p className="italic text-slate-400 mt-2 line-clamp-2 font-serif">
                     " {clinicalNotes} "
                   </p>
                 )}
               </div>
 
               {/* Signature block */}
-              <div className="mt-auto pt-6 border-t border-slate-100 flex justify-between items-end text-[10px] text-slate-400 select-none">
-                <div className="w-32 border-b border-slate-200 pb-1 italic font-serif text-slate-800 text-xs text-center select-none font-medium">
+              <div className="mt-auto pt-6 border-t border-slate-100 flex justify-between items-end text-[10px] text-slate-400">
+                <div className="w-32 border-b border-slate-200 pb-1 italic font-serif text-slate-800 text-xs text-center font-medium">
                   Sarah Jenkins
                 </div>
                 <span>Optometrista Autorizado</span>
               </div>
             </div>
           </div>
+
+          {/* Quick print action button for high quality clinical output */}
+          <button
+            onClick={() => window.print()}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer hover:shadow-md active:scale-98"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Imprimir Receta Física</span>
+          </button>
 
           {/* Recent Rx list (Spans underneath preview) */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
