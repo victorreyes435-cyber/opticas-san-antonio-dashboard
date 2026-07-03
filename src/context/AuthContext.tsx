@@ -2,21 +2,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User, 
   onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  updateProfile, 
-  sendPasswordResetEmail,
+  signInWithPopup, 
   signOut 
 } from 'firebase/auth';
-import { auth } from '../lib/firebase.ts';
+import { auth, googleAuthProvider } from '../lib/firebase.ts';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  signIn: () => Promise<void>;
   logOut: () => Promise<void>;
 }
 
@@ -42,38 +37,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signIn = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithPopup(auth, googleAuthProvider);
     } catch (error) {
       console.error('Sign in failed:', error);
-      throw error;
-    }
-  };
-
-  const signUpWithEmail = async (email: string, password: string, displayName: string) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, {
-          displayName: displayName
-        });
-        // Force refresh token to include updated profile info
-        const idToken = await userCredential.user.getIdToken(true);
-        setToken(idToken);
-        setUser({ ...userCredential.user });
-      }
-    } catch (error) {
-      console.error('Sign up failed:', error);
-      throw error;
-    }
-  };
-
-  const resetPassword = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      console.error('Password reset failed:', error);
       throw error;
     }
   };
@@ -87,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signInWithEmail, signUpWithEmail, resetPassword, logOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signIn, logOut }}>
       {children}
     </AuthContext.Provider>
   );
