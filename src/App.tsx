@@ -33,14 +33,16 @@ import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile } fro
 import { useAuth } from './context/AuthContext.tsx';
 
 export default function App() {
-  const { user, token, loading, signInWithEmail, signUpWithEmail, logOut } = useAuth();
+  const { user, token, loading, signInWithEmail, signUpWithEmail, resetPassword, logOut } = useAuth();
 
   // Authentication UI State
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -67,6 +69,35 @@ export default function App() {
         errMsg = 'El correo electrónico ya está registrado.';
       } else if (err.code === 'auth/weak-password') {
         errMsg = 'La contraseña debe tener al menos 6 caracteres.';
+      } else if (err.code === 'auth/invalid-email') {
+        errMsg = 'El correo electrónico no es válido.';
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+      setAuthError(errMsg);
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setRecoverySuccess(null);
+    if (!authEmail.trim()) {
+      setAuthError('Por favor ingrese su correo electrónico para restablecer la contraseña.');
+      return;
+    }
+    setIsAuthSubmitting(true);
+    try {
+      await resetPassword(authEmail);
+      setRecoverySuccess('Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada o spam.');
+      triggerToast('¡Correo de restablecimiento enviado!');
+    } catch (err: any) {
+      console.error(err);
+      let errMsg = 'No se pudo enviar el correo de recuperación.';
+      if (err.code === 'auth/user-not-found') {
+        errMsg = 'No existe ningún usuario registrado con este correo.';
       } else if (err.code === 'auth/invalid-email') {
         errMsg = 'El correo electrónico no es válido.';
       } else if (err.message) {
@@ -495,76 +526,153 @@ export default function App() {
             Portal Clínico para la Gestión de Oftalmología y Optometría. Sincronización en tiempo real con Firebase Auth y PostgreSQL.
           </p>
 
-          <form onSubmit={handleAuthSubmit} className="w-full space-y-4">
-            {authError && (
-              <div className="p-3 bg-red-900/40 border border-red-500/50 rounded-xl text-xs text-red-200 text-center font-medium leading-relaxed">
-                {authError}
-              </div>
-            )}
+          {isRecovery ? (
+            <form onSubmit={handleResetPassword} className="w-full space-y-4">
+              <h2 className="text-xs font-bold text-slate-300 uppercase tracking-widest text-center">Restablecer Contraseña</h2>
+              <p className="text-[11px] text-slate-400 text-center leading-relaxed">
+                Ingresa tu correo registrado y te enviaremos un enlace seguro para restablecer tu contraseña.
+              </p>
 
-            {isSignUp && (
+              {authError && (
+                <div className="p-3 bg-red-900/40 border border-red-500/50 rounded-xl text-xs text-red-200 text-center font-medium leading-relaxed">
+                  {authError}
+                </div>
+              )}
+
+              {recoverySuccess && (
+                <div className="p-3 bg-emerald-900/40 border border-emerald-500/50 rounded-xl text-xs text-emerald-200 text-center font-medium leading-relaxed">
+                  {recoverySuccess}
+                </div>
+              )}
+
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre Completo</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correo Electrónico</label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={authName}
-                  onChange={(e) => setAuthName(e.target.value)}
-                  placeholder="Ej. Dr. Samuel Reyes"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="ejemplo@opticas-san-antonio.clinic"
                   className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
-            )}
 
-            <div className="space-y-1">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correo Electrónico</label>
-              <input
-                type="email"
-                required
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                placeholder="ejemplo@opticas-san-antonio.clinic"
-                className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
+              <button
+                type="submit"
+                disabled={isAuthSubmitting}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-3 border border-indigo-500/30 text-xs active:scale-98"
+              >
+                {isAuthSubmitting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <ShieldCheck className="w-4 h-4 text-indigo-200" />
+                )}
+                <span>Enviar Enlace de Recuperación</span>
+              </button>
 
-            <div className="space-y-1">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contraseña</label>
-              <input
-                type="password"
-                required
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRecovery(false);
+                    setAuthError(null);
+                    setRecoverySuccess(null);
+                  }}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors focus:outline-none"
+                >
+                  Regresar al Inicio de Sesión
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <form onSubmit={handleAuthSubmit} className="w-full space-y-4">
+                {authError && (
+                  <div className="p-3 bg-red-900/40 border border-red-500/50 rounded-xl text-xs text-red-200 text-center font-medium leading-relaxed">
+                    {authError}
+                  </div>
+                )}
 
-            <button
-              type="submit"
-              disabled={isAuthSubmitting}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-3 border border-indigo-500/30 text-xs active:scale-98"
-            >
-              {isAuthSubmitting ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <ShieldCheck className="w-4 h-4 text-indigo-200" />
-              )}
-              <span>{isSignUp ? 'Crear Cuenta e Ingresar' : 'Iniciar Sesión'}</span>
-            </button>
-          </form>
+                {isSignUp && (
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre Completo</label>
+                    <input
+                      type="text"
+                      required
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                      placeholder="Ej. Dr. Samuel Reyes"
+                      className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+                )}
 
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setAuthError(null);
-              }}
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors focus:outline-none"
-            >
-              {isSignUp ? '¿Ya tienes una cuenta? Iniciar Sesión' : '¿No tienes una cuenta? Regístrate aquí'}
-            </button>
-          </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    required
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="ejemplo@opticas-san-antonio.clinic"
+                    className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contraseña</label>
+                    {!isSignUp && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRecovery(true);
+                          setAuthError(null);
+                          setRecoverySuccess(null);
+                        }}
+                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold transition-colors focus:outline-none cursor-pointer"
+                      >
+                        ¿La olvidaste?
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isAuthSubmitting}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-3 border border-indigo-500/30 text-xs active:scale-98"
+                >
+                  {isAuthSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <ShieldCheck className="w-4 h-4 text-indigo-200" />
+                  )}
+                  <span>{isSignUp ? 'Crear Cuenta e Ingresar' : 'Iniciar Sesión'}</span>
+                </button>
+              </form>
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setAuthError(null);
+                  }}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors focus:outline-none"
+                >
+                  {isSignUp ? '¿Ya tienes una cuenta? Iniciar Sesión' : '¿No tienes una cuenta? Regístrate aquí'}
+                </button>
+              </div>
+            </>
+          )}
 
           <div className="mt-8 pt-6 border-t border-slate-800/60 w-full flex justify-between items-center text-[10px] text-slate-500 font-mono">
             <span>DATABASE: CLOUD SQL</span>

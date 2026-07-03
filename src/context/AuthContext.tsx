@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile, 
+  sendPasswordResetEmail,
   signOut 
 } from 'firebase/auth';
 import { auth } from '../lib/firebase.ts';
@@ -15,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logOut: () => Promise<void>;
 }
 
@@ -67,6 +69,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error) {
+      console.error('Password reset failed:', error);
+      throw error;
+    }
+  };
+
   const logOut = async () => {
     try {
       await signOut(auth);
@@ -76,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signInWithEmail, signUpWithEmail, logOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signInWithEmail, signUpWithEmail, resetPassword, logOut }}>
       {children}
     </AuthContext.Provider>
   );
