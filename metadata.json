@@ -1,6 +1,6 @@
 {
   "name": "OphthalmoPro",
-  "description": "Ophthalmology Clinical Suite for managing patients, prescriptions, schedule, and encounter forms.",
-  "requestFramePermissions": [],
+  "description": "Suite clínica oftalmológica para gestionar pacientes, recetas, agenda y formularios de consulta.",
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

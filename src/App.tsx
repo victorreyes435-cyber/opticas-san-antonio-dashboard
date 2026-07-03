@@ -14,7 +14,9 @@ import {
   Database,
   CloudLightning,
   Eye,
-  Plus
+  Plus,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
@@ -24,69 +26,62 @@ import AgendaView from './components/AgendaView';
 import PatientsView from './components/PatientsView';
 import PrescriptionsView from './components/PrescriptionsView';
 import BottomNavBar from './components/BottomNavBar';
+import UserProfileModal from './components/UserProfileModal';
 
 import { INITIAL_PATIENTS, INITIAL_APPOINTMENTS, INITIAL_PRESCRIPTIONS, VISIT_HISTORY } from './data';
-import { Patient, Appointment, Prescription, VisitHistoryItem } from './types';
+import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile } from './types';
+import { useAuth } from './context/AuthContext.tsx';
 
 export default function App() {
+  const { user, token, loading, signIn, logOut } = useAuth();
+
   // Navigation active tab
   const [activeTab, setActiveTab] = useState<string>('prescriptions');
 
-  // Unified global state stores with persistent memory
-  const [patients, setPatients] = useState<Patient[]>(() => {
-    const saved = localStorage.getItem('op_patients');
-    return saved ? JSON.parse(saved) : INITIAL_PATIENTS;
+  // Dark mode theme state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('theme') === 'dark';
   });
 
-  const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    const saved = localStorage.getItem('op_appointments');
-    return saved ? JSON.parse(saved) : INITIAL_APPOINTMENTS;
-  });
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>(() => {
-    const saved = localStorage.getItem('op_prescriptions');
-    return saved ? JSON.parse(saved) : INITIAL_PRESCRIPTIONS;
+  // Unified global state stores with persistent memory falling back to API
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [visitHistory, setVisitHistory] = useState<VisitHistoryItem[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: 'Dr. S. Miller',
+    role: 'Tecnólogo Médico',
+    avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80'
   });
-
-  const [visitHistory, setVisitHistory] = useState<VisitHistoryItem[]>(() => {
-    const saved = localStorage.getItem('op_visithistory');
-    return saved ? JSON.parse(saved) : VISIT_HISTORY;
-  });
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [showAddUserForm, setShowAddUserForm] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'Recepcionista' | 'Tecnólogo Médico'>('Tecnólogo Médico');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserAvatar, setNewUserAvatar] = useState('https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80');
 
   const [selectedPatientId, setSelectedPatientId] = useState<string>('123-456-78');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Persist states to localStorage
-  useEffect(() => {
-    localStorage.setItem('op_patients', JSON.stringify(patients));
-  }, [patients]);
-
-  // Handle auto-selection of first patient if active becomes empty
-  useEffect(() => {
-    if (patients.length > 0 && !patients.some(p => p.id === selectedPatientId)) {
-      setSelectedPatientId(patients[0].id);
-    }
-  }, [patients, selectedPatientId]);
-
-  useEffect(() => {
-    localStorage.setItem('op_appointments', JSON.stringify(appointments));
-  }, [appointments]);
-
-  useEffect(() => {
-    localStorage.setItem('op_prescriptions', JSON.stringify(prescriptions));
-  }, [prescriptions]);
-
-  useEffect(() => {
-    localStorage.setItem('op_visithistory', JSON.stringify(visitHistory));
-  }, [visitHistory]);
-
   // Modal display toggles
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState<string | null>(null);
+  const [isToastError, setIsToastError] = useState<boolean>(false);
 
   // New Appointment Form state
-  const [newAppPatientId, setNewAppPatientId] = useState(patients[0]?.id || '');
+  const [newAppPatientId, setNewAppPatientId] = useState('');
   const [newAppTime, setNewAppTime] = useState('11:30 AM');
   const [newAppReason, setNewAppReason] = useState('Comprehensive Exam');
   const [newAppTech, setNewAppTech] = useState('dr_reynolds');
@@ -99,16 +94,61 @@ export default function App() {
   const [newPatSex, setNewPatSex] = useState<'Male' | 'Female' | 'Other'>('Female');
   const [newPatBlood, setNewPatBlood] = useState('O+');
   const [newPatPhone, setNewPatPhone] = useState('(555) 012-3344');
-  const [newPatAllergies, setNewPatAllergies] = useState('None');
-  const [newPatConditions, setNewPatConditions] = useState('Healthy');
+  const [newPatAllergies, setNewPatAllergies] = useState('Ninguna');
+  const [newPatConditions, setNewPatConditions] = useState('Sano');
 
   // Helper trigger
-  const triggerToast = (msg: string) => {
+  const triggerToast = (msg: string, isError = false) => {
     setShowSuccessToast(msg);
+    setIsToastError(isError);
     setTimeout(() => {
       setShowSuccessToast(null);
-    }, 3500);
+      setIsToastError(false);
+    }, 4500);
   };
+
+  // Fetch clinical database contents on sign-in
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchClinicalData = async () => {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [profileRes, patientsRes, apptsRes, prescriptionsRes, visitRes, usersRes] = await Promise.all([
+          fetch('/api/profile', { headers }).then(res => res.json()),
+          fetch('/api/patients', { headers }).then(res => res.json()),
+          fetch('/api/appointments', { headers }).then(res => res.json()),
+          fetch('/api/prescriptions', { headers }).then(res => res.json()),
+          fetch('/api/visit-history', { headers }).then(res => res.json()),
+          fetch('/api/users', { headers }).then(res => res.json()),
+        ]);
+
+        setUserProfile(profileRes);
+        setPatients(patientsRes);
+        setAppointments(apptsRes);
+        setPrescriptions(prescriptionsRes);
+        setVisitHistory(visitRes);
+        setAllUsers(usersRes && usersRes.length > 0 ? usersRes : [profileRes]);
+
+        if (patientsRes.length > 0) {
+          setSelectedPatientId(patientsRes[0].id);
+          setNewAppPatientId(patientsRes[0].id);
+        }
+      } catch (err) {
+        console.error('Error fetching clinical data from Cloud SQL:', err);
+        triggerToast('Error de conexión con la base de datos', true);
+      }
+    };
+
+    fetchClinicalData();
+  }, [token]);
+
+  // Handle auto-selection of first patient if active becomes empty
+  useEffect(() => {
+    if (patients.length > 0 && !patients.some(p => p.id === selectedPatientId)) {
+      setSelectedPatientId(patients[0].id);
+    }
+  }, [patients, selectedPatientId]);
 
   const handleOpenPatientChart = (patientId: string) => {
     setSelectedPatientId(patientId);
@@ -116,12 +156,23 @@ export default function App() {
     triggerToast("Expediente del paciente cargado con éxito.");
   };
 
-  const handleCreateAppointmentSubmit = (e: React.FormEvent) => {
+  const handleCreateAppointmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if there is already an appointment in the same time slot and exam room
+    const hasConflict = appointments.some(
+      apt => apt.time.trim().toLowerCase() === newAppTime.trim().toLowerCase() && 
+             apt.room.trim().toLowerCase() === newAppRoom.trim().toLowerCase()
+    );
+
+    if (hasConflict) {
+      triggerToast(`Conflicto de Horario: Ya existe una cita en "${newAppRoom}" a las ${newAppTime}.`, true);
+      return;
+    }
+
     const patientObj = patients.find(p => p.id === newAppPatientId) || patients[0];
     
-    const newApt: Appointment = {
-      id: 'apt_' + Date.now(),
+    const newAptPayload = {
       time: newAppTime,
       patientId: newAppPatientId,
       patientName: patientObj ? patientObj.name : 'Unknown Patient',
@@ -132,54 +183,297 @@ export default function App() {
       priority: newAppPriority
     };
 
-    setAppointments(prev => [newApt, ...prev]);
-    setShowAppointmentModal(false);
-    triggerToast(`Cita programada para ${newApt.patientName}`);
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newAptPayload)
+      });
+      const created = await res.json();
+      setAppointments(prev => [created, ...prev]);
+      setShowAppointmentModal(false);
+      triggerToast(`Cita programada para ${created.patientName}`);
+    } catch (err) {
+      console.error('Failed to create appointment:', err);
+      triggerToast('Error al programar la cita', true);
+    }
   };
 
-  const handleCreatePatientSubmit = (e: React.FormEvent) => {
+  const handleCreatePatientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPatName.trim()) return;
 
-    const newID = 'OP-' + Math.floor(10000 + Math.random() * 90000);
     const birthYear = new Date(newPatDob).getFullYear();
     const currentYear = new Date().getFullYear();
     const calculatedAge = currentYear - birthYear;
 
-    const newPat: Patient = {
-      id: newID,
+    const newPatPayload = {
       name: newPatName,
       dob: newPatDob,
       age: calculatedAge,
       sex: newPatSex,
       bloodType: newPatBlood,
       phone: newPatPhone,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', // generic clinical avatar
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       allergies: newPatAllergies.split(',').map(s => s.trim()).filter(Boolean),
       chronicConditions: newPatConditions.split(',').map(s => s.trim()).filter(Boolean)
     };
 
-    setPatients(prev => [newPat, ...prev]);
-    setSelectedPatientId(newID); // auto-select new patient
-    setNewAppPatientId(newID);   // update dropdown select state
-    setShowPatientModal(false);
-    
-    // Clear form
-    setNewPatName('');
-    setNewPatDob('1980-01-01');
-    setNewPatPhone('(555) 012-3344');
-    setNewPatAllergies('Ninguna');
-    setNewPatConditions('Sano');
+    try {
+      const res = await fetch('/api/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newPatPayload)
+      });
+      const created = await res.json();
+      setPatients(prev => [created, ...prev]);
+      setSelectedPatientId(created.id);
+      setNewAppPatientId(created.id);
+      setShowPatientModal(false);
+      
+      setNewPatName('');
+      setNewPatDob('1980-01-01');
+      setNewPatPhone('(555) 012-3344');
+      setNewPatAllergies('Ninguna');
+      setNewPatConditions('Sano');
 
-    triggerToast(`Nuevo perfil de paciente creado para ${newPat.name}`);
-    setActiveTab('patients'); // Go to patient view automatically
+      triggerToast(`Nuevo perfil de paciente creado para ${created.name}`);
+      setActiveTab('patients');
+    } catch (err) {
+      console.error('Failed to create patient:', err);
+      triggerToast('Error al guardar el paciente', true);
+    }
   };
+
+  // Custom setter wrappers to intercept local mutations and sync with API
+  const handleSetAppointments = async (value: React.SetStateAction<Appointment[]>) => {
+    let updated: Appointment[];
+    if (typeof value === 'function') {
+      updated = value(appointments);
+    } else {
+      updated = value;
+    }
+
+    // Detect if an item was deleted
+    const deletedItem = appointments.find(item => !updated.some(u => u.id === item.id));
+    if (deletedItem) {
+      try {
+        await fetch(`/api/appointments/${deletedItem.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        triggerToast('Cita cancelada con éxito');
+      } catch (err) {
+        console.error('Failed to delete appointment from DB:', err);
+      }
+    }
+
+    // Detect if an item was updated
+    const updatedItem = updated.find(item => {
+      const orig = appointments.find(o => o.id === item.id);
+      return orig && (orig.status !== item.status || orig.time !== item.time || orig.room !== item.room);
+    });
+    if (updatedItem) {
+      try {
+        await fetch(`/api/appointments/${updatedItem.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(updatedItem)
+        });
+      } catch (err) {
+        console.error('Failed to sync appointment update to DB:', err);
+      }
+    }
+
+    setAppointments(updated);
+  };
+
+  const handleSetPrescriptions = async (value: React.SetStateAction<Prescription[]>) => {
+    let updated: Prescription[];
+    if (typeof value === 'function') {
+      updated = value(prescriptions);
+    } else {
+      updated = value;
+    }
+
+    const newlyAdded = updated.find(item => !prescriptions.some(p => p.id === item.id));
+    if (newlyAdded) {
+      try {
+        await fetch('/api/prescriptions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(newlyAdded)
+        });
+      } catch (err) {
+        console.error('Failed to sync new prescription to DB:', err);
+      }
+    }
+
+    setPrescriptions(updated);
+  };
+
+  const handleSetVisitHistory = async (value: React.SetStateAction<VisitHistoryItem[]>) => {
+    let updated: VisitHistoryItem[];
+    if (typeof value === 'function') {
+      updated = value(visitHistory);
+    } else {
+      updated = value;
+    }
+
+    const newlyAdded = updated.find(item => !visitHistory.some(v => v.id === item.id));
+    if (newlyAdded) {
+      try {
+        await fetch('/api/visit-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(newlyAdded)
+        });
+      } catch (err) {
+        console.error('Failed to sync new visit history to DB:', err);
+      }
+    }
+
+    setVisitHistory(updated);
+  };
+
+  const handleProfileChange = async (newProfile: UserProfile) => {
+    setUserProfile(newProfile);
+    if (!token) return;
+    try {
+      await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newProfile)
+      });
+      triggerToast('Perfil actualizado con éxito');
+    } catch (e) {
+      console.error('Failed to sync profile update:', e);
+    }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !token) return;
+
+    try {
+      const payload = {
+        name: newUserName,
+        role: newUserRole,
+        email: newUserEmail || `${newUserName.toLowerCase().replace(/\s+/g, '')}@ophthalmopro.clinic`,
+        avatar: newUserAvatar
+      };
+
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const created = await res.json();
+      setAllUsers(prev => [...prev, created]);
+      
+      // Reset form
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserRole('Tecnólogo Médico');
+      setNewUserAvatar('https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80');
+      setShowAddUserForm(false);
+
+      triggerToast(`Usuario ${created.name} (${created.role}) creado con éxito`);
+    } catch (err) {
+      console.error('Failed to create new user:', err);
+      triggerToast('Error al crear el nuevo usuario', true);
+    }
+  };
+
+  const handleSwitchUser = (switchedUser: UserProfile) => {
+    setUserProfile(switchedUser);
+    triggerToast(`Sesión cambiada a ${switchedUser.name} (${switchedUser.role})`);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-slate-900 min-h-screen text-slate-100 flex items-center justify-center font-sans antialiased">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-bold tracking-widest text-indigo-200 uppercase">Cargando Ópticas San Antonio...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="bg-slate-950 min-h-screen text-slate-100 flex items-center justify-center font-sans antialiased relative overflow-hidden">
+        {/* Background ambient glows */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-900/20 rounded-full filter blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-900/20 rounded-full filter blur-3xl pointer-events-none"></div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-slate-900/85 border border-slate-800/80 p-8 md:p-10 rounded-2xl shadow-2xl max-w-md w-full backdrop-blur-md relative z-10 flex flex-col items-center"
+        >
+          {/* Logo */}
+          <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-6">
+            <Eye className="w-8 h-8 text-white animate-pulse" />
+          </div>
+
+          <h1 className="text-2xl font-bold tracking-tight text-white text-center font-sans">
+            OPHTHALMOPRO
+          </h1>
+          <p className="text-xs font-bold tracking-widest text-indigo-400 uppercase mt-1 mb-6">
+            Clinical Suite
+          </p>
+
+          <p className="text-xs text-slate-400 text-center leading-relaxed mb-8">
+            Portal Clínico para la Gestión de Oftalmología y Optometría. Sincronización en tiempo real con Firebase Auth y PostgreSQL.
+          </p>
+
+          <button
+            onClick={signIn}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-3 border border-indigo-500/30 text-xs active:scale-98"
+          >
+            <ShieldCheck className="w-4 h-4 text-indigo-200" />
+            <span>Iniciar Sesión con Google</span>
+          </button>
+
+          <div className="mt-8 pt-6 border-t border-slate-800/60 w-full flex justify-between items-center text-[10px] text-slate-500 font-mono">
+            <span>DATABASE: CLOUD SQL</span>
+            <span>AUTH: FIREBASE</span>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-50 min-h-screen text-slate-800 flex overflow-hidden font-sans antialiased">
       
       {/* Side Navigation panel */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userProfile={userProfile} />
 
       {/* Main Container Wrapper */}
       <div className="flex-1 lg:ml-64 flex flex-col h-screen overflow-hidden">
@@ -188,6 +482,8 @@ export default function App() {
         <Header 
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
+          userProfile={userProfile}
+          onProfileClick={() => setShowProfileModal(true)}
           onNewAppointmentClick={() => {
             // Pre-select patient if possible
             if (patients.length > 0) {
@@ -203,107 +499,333 @@ export default function App() {
           <AnimatePresence mode="wait">
             
             {activeTab === 'dashboard' && (
-              <DashboardView 
-                appointments={appointments}
-                patients={patients}
-                onOpenPatientChart={handleOpenPatientChart}
-                onAddPatientClick={() => setShowPatientModal(true)}
-                onAddAppointmentClick={() => {
-                  if (patients.length > 0) {
-                    setNewAppPatientId(selectedPatientId || patients[0].id);
-                  }
-                  setShowAppointmentModal(true);
-                }}
-                searchQuery={searchQuery}
-              />
+              <motion.div
+                key="dashboard"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <DashboardView 
+                  appointments={appointments}
+                  patients={patients}
+                  onOpenPatientChart={handleOpenPatientChart}
+                  onAddPatientClick={() => setShowPatientModal(true)}
+                  onAddAppointmentClick={() => {
+                    if (patients.length > 0) {
+                      setNewAppPatientId(selectedPatientId || patients[0].id);
+                    }
+                    setShowAppointmentModal(true);
+                  }}
+                  searchQuery={searchQuery}
+                />
+              </motion.div>
             )}
 
             {activeTab === 'agenda' && (
-              <AgendaView 
-                appointments={appointments}
-                setAppointments={setAppointments}
-                onOpenPatientChart={handleOpenPatientChart}
-                onAddAppointmentClick={() => {
-                  if (patients.length > 0) {
-                    setNewAppPatientId(selectedPatientId || patients[0].id);
-                  }
-                  setShowAppointmentModal(true);
-                }}
-                searchQuery={searchQuery}
-              />
+              <motion.div
+                key="agenda"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <AgendaView 
+                  appointments={appointments}
+                  patients={patients}
+                  setAppointments={handleSetAppointments}
+                  onOpenPatientChart={handleOpenPatientChart}
+                  onAddAppointmentClick={() => {
+                    if (patients.length > 0) {
+                      setNewAppPatientId(selectedPatientId || patients[0].id);
+                    }
+                    setShowAppointmentModal(true);
+                  }}
+                  searchQuery={searchQuery}
+                />
+              </motion.div>
             )}
 
             {activeTab === 'patients' && (
-              <PatientsView 
-                patients={patients}
-                selectedPatientId={selectedPatientId}
-                onPatientChange={setSelectedPatientId}
-                visitHistory={visitHistory}
-                setVisitHistory={setVisitHistory}
-                onSwitchToPrescriptions={() => setActiveTab('prescriptions')}
-                onAddPatientClick={() => setShowPatientModal(true)}
-                searchQuery={searchQuery}
-              />
+              <motion.div
+                key="patients"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <PatientsView 
+                  patients={patients}
+                  selectedPatientId={selectedPatientId}
+                  onPatientChange={setSelectedPatientId}
+                  visitHistory={visitHistory}
+                  setVisitHistory={handleSetVisitHistory}
+                  onSwitchToPrescriptions={() => setActiveTab('prescriptions')}
+                  onAddPatientClick={() => setShowPatientModal(true)}
+                  searchQuery={searchQuery}
+                  prescriptions={prescriptions}
+                />
+              </motion.div>
             )}
 
             {activeTab === 'prescriptions' && (
-              <PrescriptionsView 
-                patients={patients}
-                selectedPatientId={selectedPatientId}
-                onPatientChange={setSelectedPatientId}
-                prescriptions={prescriptions}
-                setPrescriptions={setPrescriptions}
-                searchQuery={searchQuery}
-              />
+              <motion.div
+                key="prescriptions"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <PrescriptionsView 
+                  patients={patients}
+                  selectedPatientId={selectedPatientId}
+                  onPatientChange={setSelectedPatientId}
+                  prescriptions={prescriptions}
+                  setPrescriptions={handleSetPrescriptions}
+                  searchQuery={searchQuery}
+                />
+              </motion.div>
             )}
 
             {activeTab === 'settings' && (
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6 text-xs max-w-2xl"
+                key="settings"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl w-full"
               >
-                <div>
-                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-indigo-600" />
-                    <span>Ajustes de la Clínica</span>
-                  </h3>
-                  <p className="text-slate-400 mt-1">Configure escáneres, interfaces de autorrefractómetro y bases de datos cloud.</p>
+                {/* Left Column: General Clinic Settings */}
+                <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6 text-xs self-start">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-indigo-600" />
+                      <span>Ajustes de la Clínica</span>
+                    </h3>
+                    <p className="text-slate-400 mt-1">Configure escáneres, interfaces de autorrefractómetro y bases de datos cloud.</p>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-1">
+                        <label className="block font-bold text-slate-400 uppercase">Nombre de la Clínica</label>
+                        <input type="text" readOnly value="Ópticas San Antonio" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-semibold text-slate-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block font-bold text-slate-400 uppercase">ID del Proveedor</label>
+                        <input type="text" readOnly value="MED-99201-OP" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-slate-500" />
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 rounded-lg space-y-2 border border-slate-100">
+                      <h4 className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <Database className="w-4 h-4 text-indigo-600" />
+                        <span>Conexiones de Diagnóstico</span>
+                      </h4>
+                      <p className="text-slate-500 text-[11px] leading-relaxed">
+                        El Analizador de Campo Visual Humphrey y Zeiss Cirrus OCT están conectados en el puerto COM 3 y sincronizándose con la base de datos local.
+                      </p>
+                      <span className="inline-block px-2.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded text-[10px] uppercase border border-emerald-200">
+                        Conexión Activa
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <span className="text-slate-400 font-semibold">Almacenamiento sin Conexión:</span>
+                      <span className="text-emerald-600 font-bold flex items-center gap-1">
+                        <ShieldCheck className="w-4 h-4" /> Habilitado (IndexedDB / LocalStorage activos)
+                      </span>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 space-y-3">
+                      <h4 className="font-bold text-slate-700 flex items-center gap-1.5">
+                        {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                        <span>Tema de la Interfaz</span>
+                      </h4>
+                      <p className="text-slate-400 text-[11px] leading-relaxed">
+                        Cambie entre el modo claro tradicional y el modo oscuro optimizado para baja luminosidad durante exámenes visuales.
+                      </p>
+                      <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg mt-2">
+                        <span className="font-semibold text-slate-600">
+                          {isDarkMode ? 'Modo Oscuro Activo' : 'Modo Claro Activo'}
+                        </span>
+                        <button
+                          onClick={() => setIsDarkMode(!isDarkMode)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                            isDarkMode ? 'bg-indigo-600' : 'bg-slate-200'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                              isDarkMode ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="block font-bold text-slate-400 uppercase">Nombre de la Clínica</label>
-                      <input type="text" readOnly value="Clínica OphthalmoPro" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-semibold text-slate-500" />
+                {/* Right Column: User and Staff Management */}
+                <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6 text-xs">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-indigo-600" />
+                        <span>Personal y Gestión de Usuarios</span>
+                      </h3>
+                      <p className="text-slate-400 mt-1">Administre y agregue personal clínico de la base de datos.</p>
                     </div>
-                    <div className="space-y-1">
-                      <label className="block font-bold text-slate-400 uppercase">ID del Proveedor</label>
-                      <input type="text" readOnly value="MED-99201-OP" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-slate-500" />
+                    
+                    <button
+                      onClick={() => setShowAddUserForm(!showAddUserForm)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>{showAddUserForm ? "Cerrar Formulario" : "Agregar Usuario"}</span>
+                    </button>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 space-y-6">
+                    {/* Expandable Form: Add Clinic User */}
+                    {showAddUserForm && (
+                      <motion.form 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        onSubmit={handleCreateUser}
+                        className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4"
+                      >
+                        <h4 className="font-bold text-indigo-900 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                          <span>Registrar Nuevo Colaborador</span>
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="block font-bold text-slate-500 uppercase text-[10px]">Nombre Completo</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="ej. Dra. Jenkins" 
+                              value={newUserName}
+                              onChange={(e) => setNewUserName(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600" 
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block font-bold text-slate-500 uppercase text-[10px]">Correo Electrónico (Opcional)</label>
+                            <input 
+                              type="email" 
+                              placeholder="ej. jenkins@ophthalmopro.clinic" 
+                              value={newUserEmail}
+                              onChange={(e) => setNewUserEmail(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600" 
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="block font-bold text-slate-500 uppercase text-[10px]">Rol Clínico</label>
+                            <select 
+                              value={newUserRole}
+                              onChange={(e) => setNewUserRole(e.target.value as any)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                            >
+                              <option value="Tecnólogo Médico">Tecnólogo Médico</option>
+                              <option value="Recepcionista">Recepcionista</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="block font-bold text-slate-500 uppercase text-[10px]">Avatar Preestablecido</label>
+                            <div className="flex gap-2">
+                              {[
+                                'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
+                                'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80',
+                                'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+                                'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+                                'https://images.unsplash.com/photo-1594824813573-246434de83fb?w=150&auto=format&fit=crop&q=80'
+                              ].map((avatarUrl, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => setNewUserAvatar(avatarUrl)}
+                                  className={`w-8 h-8 rounded-full overflow-hidden border-2 transition-all shrink-0 ${
+                                    newUserAvatar === avatarUrl ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-slate-200 hover:scale-105'
+                                  }`}
+                                >
+                                  <img src={avatarUrl} alt="Preset Avatar" className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddUserForm(false)}
+                            className="px-3 py-1.5 border border-slate-200 hover:bg-slate-100 text-slate-500 font-bold rounded-lg cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors cursor-pointer shadow-sm"
+                          >
+                            Registrar Colaborador
+                          </button>
+                        </div>
+                      </motion.form>
+                    )}
+
+                    {/* Clinic Staff List */}
+                    <div className="space-y-3">
+                      <h4 className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Colaboradores de la Clínica ({allUsers.length})</h4>
+                      <p className="text-slate-400 text-[10px]">Haga clic en un colaborador para cambiar el perfil activo y simular su perspectiva.</p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {allUsers.map((u, index) => {
+                          const isActive = userProfile.name === u.name && userProfile.role === u.role;
+                          return (
+                            <div 
+                              key={index}
+                              onClick={() => handleSwitchUser(u)}
+                              className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all hover:bg-slate-50 active:scale-98 ${
+                                isActive 
+                                  ? 'border-indigo-600 bg-indigo-50/20 shadow-xs' 
+                                  : 'border-slate-200'
+                              }`}
+                            >
+                              <img 
+                                src={u.avatar} 
+                                alt={u.name} 
+                                className="w-10 h-10 rounded-full object-cover border-2 border-slate-100" 
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-bold text-slate-800 text-xs truncate">{u.name}</p>
+                                  {isActive && (
+                                    <span className="bg-indigo-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0">
+                                      Activo
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-indigo-600 font-semibold text-[9px] uppercase tracking-wider mt-0.5">{u.role}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-
-                  <div className="p-4 bg-slate-50 rounded-lg space-y-2 border border-slate-100">
-                    <h4 className="font-bold text-slate-700 flex items-center gap-1.5">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      <span>Conexiones de Diagnóstico</span>
-                    </h4>
-                    <p className="text-slate-500 text-[11px] leading-relaxed">
-                      El Analizador de Campo Visual Humphrey y Zeiss Cirrus OCT están conectados en el puerto COM 3 y sincronizándose con la base de datos local.
-                    </p>
-                    <span className="inline-block px-2.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded text-[10px] uppercase border border-emerald-200">
-                      Conexión Activa
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <span className="text-slate-400 font-semibold">Almacenamiento sin Conexión:</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1">
-                      <ShieldCheck className="w-4 h-4" /> Habilitado (IndexedDB / LocalStorage activos)
-                    </span>
-                  </div>
-
                 </div>
               </motion.div>
             )}
@@ -325,16 +847,16 @@ export default function App() {
 
                 <div className="space-y-4 pt-4 border-t border-slate-100">
                   <p className="text-slate-600 font-medium leading-relaxed">
-                    OphthalmoPro Clinical Suite incluye soporte prioritario las 24 horas para clínicas autorizadas. Si tiene problemas para sincronizar lentes o refractores, escriba a:
+                    Ópticas San Antonio Suite incluye soporte prioritario las 24 horas para clínicas autorizadas. Si tiene problemas para sincronizar lentes o refractores, escriba a:
                   </p>
                   <p className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-3 py-2 rounded-lg self-start inline-block">
-                    support@ophthalmopro.clinic | Tel: +1 (800) 555-EYES
+                    soporte@opticas-san-antonio.clinic | Tel: +1 (800) 555-EYES
                   </p>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 border border-slate-100 rounded-lg hover:shadow-xs transition-shadow bg-slate-50/50">
                       <h4 className="font-bold text-slate-800">Actualizaciones de Software</h4>
-                      <p className="text-slate-400 mt-1">OphthalmoPro Clinical Suite está en v4.14.0 (Estable).</p>
+                      <p className="text-slate-400 mt-1">Ópticas San Antonio Suite está en v4.14.0 (Estable).</p>
                     </div>
                     <div className="p-4 border border-slate-100 rounded-lg hover:shadow-xs transition-shadow bg-slate-50/50">
                       <h4 className="font-bold text-slate-800">Perfil de Calibración</h4>
@@ -624,13 +1146,30 @@ export default function App() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-6 right-6 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-lg shadow-xl z-50 flex items-center gap-2 border border-slate-800"
+            className={`fixed bottom-6 right-6 text-white text-xs font-semibold px-4 py-3 rounded-lg shadow-xl z-50 flex items-center gap-2 border ${
+              isToastError 
+                ? 'bg-rose-950 border-rose-800 text-rose-100' 
+                : 'bg-slate-900 border-slate-800'
+            }`}
           >
-            <CheckCircle className="w-4 h-4 text-emerald-400" />
-            <span>{showSuccessToast}</span>
+            {isToastError ? (
+              <X className="w-4 h-4 text-rose-400 shrink-0" />
+            ) : (
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+            )}
+            <span className="leading-tight">{showSuccessToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* User Profile configuration Modal */}
+      <UserProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        profile={userProfile}
+        onChangeProfile={handleProfileChange}
+        onLogout={logOut}
+      />
 
       {/* Bottom Navigation tab bar */}
       <BottomNavBar activeTab={activeTab} setActiveTab={setActiveTab} />

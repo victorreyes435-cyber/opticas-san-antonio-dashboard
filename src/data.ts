@@ -10,11 +10,11 @@ export const INITIAL_PATIENTS: Patient[] = [
     bloodType: 'O+',
     phone: '(555) 019-2834',
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
-    allergies: ['Penicillin', 'Latex'],
+    allergies: ['Penicilina', 'Látex'],
     chronicConditions: [
-      'Type 2 Diabetes Mellitus (Diagnosed 2015)',
-      'Hypertension',
-      'Glaucoma Suspect (OU)'
+      'Diabetes Mellitus Tipo 2 (Diag. 2015)',
+      'Hipertensión Arterial',
+      'Sospecha de Glaucoma (AO)'
     ]
   },
   {
@@ -26,8 +26,8 @@ export const INITIAL_PATIENTS: Patient[] = [
     bloodType: 'A-',
     phone: '(555) 012-3456',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    allergies: ['Sulfa Drugs'],
-    chronicConditions: ['Mild Myopia', 'Dry Eye Syndrome']
+    allergies: ['Sulfamidas'],
+    chronicConditions: ['Miopía Leve', 'Síndrome de Ojo Seco']
   },
   {
     id: 'OP-10492',
@@ -38,8 +38,8 @@ export const INITIAL_PATIENTS: Patient[] = [
     bloodType: 'AB+',
     phone: '(555) 018-9922',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    allergies: ['None'],
-    chronicConditions: ['Cataracts (Early Stage)']
+    allergies: ['Ninguna'],
+    chronicConditions: ['Cataratas (Etapa Temprana)']
   },
   {
     id: 'OP-09881',
@@ -50,8 +50,8 @@ export const INITIAL_PATIENTS: Patient[] = [
     bloodType: 'B+',
     phone: '(555) 015-7733',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&auto=format&fit=crop&q=80',
-    allergies: ['Aspirin'],
-    chronicConditions: ['Glaucoma (Controlled)']
+    allergies: ['Aspirina'],
+    chronicConditions: ['Glaucoma (Controlado)']
   },
   {
     id: 'OP-11002',
@@ -62,8 +62,8 @@ export const INITIAL_PATIENTS: Patient[] = [
     bloodType: 'O-',
     phone: '(555) 013-1144',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    allergies: ['Dust Mites'],
-    chronicConditions: ['Astigmatism (OD)']
+    allergies: ['Ácaros del polvo'],
+    chronicConditions: ['Astigmatismo (OD)']
   },
   {
     id: 'OP-07743',
@@ -74,8 +74,8 @@ export const INITIAL_PATIENTS: Patient[] = [
     bloodType: 'A+',
     phone: '(555) 011-8855',
     avatar: 'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=150&auto=format&fit=crop&q=80',
-    allergies: ['Latex'],
-    chronicConditions: ['Presbyopia']
+    allergies: ['Látex'],
+    chronicConditions: ['Presbicia']
   }
 ];
 
@@ -84,21 +84,21 @@ export const TECHNOLOGISTS: Technologist[] = [
     id: 'dr_reynolds',
     name: 'Dr. Reynolds',
     initials: 'DR',
-    role: 'Ophthalmologist',
+    role: 'Oftalmólogo',
     avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80'
   },
   {
     id: 'sarah_chen',
-    name: 'Sarah Chen (OD)',
+    name: 'Dra. Sarah Chen (OD)',
     initials: 'SC',
-    role: 'Optometrist',
+    role: 'Optometrista',
     avatar: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?w=150&auto=format&fit=crop&q=80'
   },
   {
     id: 'marcus_pierce',
     name: 'Marcus Pierce',
     initials: 'MP',
-    role: 'Clinical Assistant',
+    role: 'Asistente Clínico',
     avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=150&auto=format&fit=crop&q=80'
   }
 ];
@@ -111,7 +111,7 @@ export const INITIAL_PRESCRIPTIONS: Prescription[] = [
     patientDob: '1985-04-12',
     date: '2023-10-27',
     doctorName: 'Sarah Jenkins',
-    od: { sph: '-2.00', cyl: '-0.50', axis: '180', add: '+1.50', pd: '32.0', prism: 'Base Down' },
+    od: { sph: '-2.00', cyl: '-0.50', axis: '180', add: '+1.50', pd: '32.0', prism: 'Base Abajo' },
     os: { sph: '-2.25', cyl: '-0.25', axis: '175', add: '+1.50', pd: '32.5', prism: '-' },
     lensType: 'Progressive',
     coatings: {
@@ -120,7 +120,7 @@ export const INITIAL_PRESCRIPTIONS: Prescription[] = [
       blueLightFilter: false,
       photochromic: false
     },
-    notes: 'Patient requests transition lenses if premium option is available. Check sizing on sport frame.'
+    notes: 'Paciente solicita lentes fotosensibles si hay opción premium disponible. Verificar tamaño en montura deportiva.'
   },
   {
     id: 'rx_002',
@@ -138,7 +138,7 @@ export const INITIAL_PRESCRIPTIONS: Prescription[] = [
       blueLightFilter: true,
       photochromic: false
     },
-    notes: 'Mainly for computer use and reading.'
+    notes: 'Principalmente para uso de computadora y lectura.'
   },
   {
     id: 'rx_003',
@@ -156,7 +156,7 @@ export const INITIAL_PRESCRIPTIONS: Prescription[] = [
       blueLightFilter: false,
       photochromic: true
     },
-    notes: 'Transition lenses prescribed for outdoor active use.'
+    notes: 'Lentes fotosensibles prescritos para uso activo al aire libre.'
   },
   {
     id: 'rx_004',
@@ -174,7 +174,7 @@ export const INITIAL_PRESCRIPTIONS: Prescription[] = [
       blueLightFilter: false,
       photochromic: false
     },
-    notes: 'Prescribed lined bifocals as patient is unable to adapt to progressives.'
+    notes: 'Se prescribieron bifocales con línea ya que el paciente no logra adaptarse a los progresivos.'
   }
 ];
 
@@ -184,10 +184,10 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     time: '09:00 AM',
     patientId: 'OP-10492',
     patientName: 'Robert Jenkins',
-    reason: 'Comprehensive Exam',
+    reason: 'Examen Completo',
     status: 'ARRIVED',
     technologistId: 'dr_reynolds',
-    room: 'Room 1 (OCT)',
+    room: 'Sala 1 (OCT)',
     priority: 'Normal'
   },
   {
@@ -195,10 +195,10 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     time: '09:45 AM',
     patientId: 'OP-09881',
     patientName: 'Sarah Lewis',
-    reason: 'Glaucoma Follow-up',
+    reason: 'Seguimiento de Glaucoma',
     status: 'CHECKING IN',
     technologistId: 'sarah_chen',
-    room: 'Room 2 (Visual Field)',
+    room: 'Sala 2 (Campo Visual)',
     priority: 'Normal'
   },
   {
@@ -206,10 +206,10 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     time: '10:30 AM',
     patientId: 'OP-11002',
     patientName: 'Marcus Chen',
-    reason: 'Contact Lens Fitting',
+    reason: 'Adaptación de Lentes de Contacto',
     status: 'SCHEDULED',
     technologistId: 'marcus_pierce',
-    room: 'Room 3 (Standard)',
+    room: 'Sala 3 (Estándar)',
     priority: 'Normal'
   },
   {
@@ -217,10 +217,10 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     time: '11:15 AM',
     patientId: 'OP-07743',
     patientName: 'Emily White',
-    reason: 'Dry Eye Assessment',
+    reason: 'Evaluación de Ojo Seco',
     status: 'SCHEDULED',
     technologistId: 'dr_reynolds',
-    room: 'Room 1 (OCT)',
+    room: 'Sala 1 (OCT)',
     priority: 'Normal'
   }
 ];
@@ -228,18 +228,18 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
 export const VISIT_HISTORY: VisitHistoryItem[] = [
   {
     id: 'visit_1',
-    date: 'Aug 14, 2023',
-    type: 'Comprehensive Eye Exam',
-    notes: 'Routine checkup. IOP stable. Mild progression of nuclear sclerosis noted in both eyes.',
+    date: '14 Ago, 2023',
+    type: 'Examen Ocular Completo',
+    notes: 'Chequeo de rutina. PIO estable. Se observa progresión leve de esclerosis nuclear en ambos ojos.',
     provider: 'Dr. Aris Thorne',
     icon: 'visibility'
   },
   {
     id: 'visit_2',
-    date: 'Feb 02, 2023',
-    type: 'Visual Field Testing',
-    notes: 'Follow-up for glaucoma suspect status. Visual fields reliable and full OU. No defects noted.',
-    provider: 'Tech: Sarah Jenkins',
+    date: '02 Feb, 2023',
+    type: 'Prueba de Campo Visual',
+    notes: 'Seguimiento por sospecha de glaucoma. Campos visuales confiables y completos en ambos ojos. No se observan defectos.',
+    provider: 'Tec: Sarah Jenkins',
     icon: 'science'
   }
 ];

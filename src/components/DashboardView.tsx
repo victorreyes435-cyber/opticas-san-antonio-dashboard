@@ -12,9 +12,29 @@ import {
   AlertTriangle,
   Sparkles,
   RefreshCw,
-  Search
+  Search,
+  MessageSquare,
+  Phone,
+  BarChart2,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 import { Appointment, Patient } from '../types';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend,
+  Cell
+} from 'recharts';
+// @ts-ignore
+import opticaLogo from '../assets/images/optica_logo_1783040422387.jpg';
 
 interface DashboardViewProps {
   appointments: Appointment[];
@@ -37,6 +57,87 @@ export default function DashboardView({
   const [labReviewed, setLabReviewed] = useState(false);
   const [rxSigned, setRxSigned] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
+
+  // WhatsApp reminder state
+  const [waSelectedApp, setWaSelectedApp] = useState<Appointment | null>(null);
+  const [waPhone, setWaPhone] = useState<string>('');
+  const [waMessage, setWaMessage] = useState<string>('');
+
+  const handleOpenWaModal = (app: Appointment) => {
+    setWaSelectedApp(app);
+    const patient = patients.find(p => p.id === app.patientId);
+    const phone = patient ? patient.phone : '';
+    setWaPhone(phone);
+    
+    const techName = app.technologistId === 'dr_reynolds' 
+      ? 'Dr. Reynolds' 
+      : app.technologistId === 'sarah_chen' 
+      ? 'Dra. Sarah Chen (OD)' 
+      : 'Especialista';
+      
+    const apptDate = `${selectedDay} de Octubre de 2024`;
+    const msg = `Hola *${app.patientName}*, le recordamos su cita programada para el día *${apptDate}* a las *${app.time}* con el especialista *${techName}* en *Ópticas San Antonio*. Por favor, confirme su asistencia respondiendo a este mensaje. ¡Le esperamos!`;
+    setWaMessage(msg);
+  };
+
+  // Data for occupancy trends chart (daily simulated clinic occupancy in October)
+  const occupancyData = [
+    { name: '18 Oct', citas: 10, ocupacion: 50 },
+    { name: '19 Oct', citas: 12, ocupacion: 60 },
+    { name: '20 Oct', citas: 15, ocupacion: 75 },
+    { name: '21 Oct', citas: 18, ocupacion: 90 },
+    { name: '22 Oct', citas: 14, ocupacion: 70 },
+    { name: '23 Oct', citas: 21, ocupacion: 95 },
+    { name: '24 Oct', citas: appointments.length, ocupacion: Math.min(100, appointments.length * 15) },
+  ];
+
+  // Calculate actual appointments count by specialist/technologist
+  const techCounts = appointments.reduce((acc, app) => {
+    acc[app.technologistId] = (acc[app.technologistId] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Dynamic specialist data merged with typical historical data for display
+  const specialistData = [
+    { 
+      name: 'Dr. Reynolds', 
+      citas: (techCounts['dr_reynolds'] || 0) + 24, 
+      departamento: 'Oftalmología', 
+      color: '#6366f1',
+      colorLight: '#e0e7ff'
+    },
+    { 
+      name: 'Dra. S. Chen', 
+      citas: (techCounts['sarah_chen'] || 0) + 31, 
+      departamento: 'Optometría', 
+      color: '#10b981',
+      colorLight: '#d1fae5'
+    },
+    { 
+      name: 'Marcus Pierce', 
+      citas: (techCounts['marcus_pierce'] || 0) + 18, 
+      departamento: 'Asistencia', 
+      color: '#a855f7',
+      colorLight: '#f3e8ff'
+    },
+  ];
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-slate-900 text-white p-3 rounded-lg shadow-lg border border-slate-800 text-xs font-sans">
+          <p className="font-bold mb-1 text-slate-300">{label}</p>
+          {payload.map((item: any, idx: number) => (
+            <p key={idx} className="font-semibold text-[11px] flex items-center gap-1" style={{ color: item.color }}>
+              <span>{item.name}:</span>
+              <span className="text-white font-bold">{item.value}{item.unit || ''}</span>
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   // Filter appointments based on top header search query
   const filteredAppointments = appointments.filter(app => {
@@ -67,12 +168,46 @@ export default function DashboardView({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -15 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
+      {/* Optica San Antonio Logo Banner */}
+      <div className="bg-slate-950 border border-slate-900 rounded-xl p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col sm:flex-row items-center gap-5 z-10 w-full sm:w-auto">
+          <div className="w-20 h-20 rounded-xl overflow-hidden border border-slate-800 shrink-0 bg-black flex items-center justify-center p-1.5 shadow-md">
+            <img 
+              src={opticaLogo} 
+              alt="Óptica San Antonio Logo" 
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <div className="text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2.5">
+              <span className="text-[10px] font-bold text-indigo-400 bg-indigo-950/60 border border-indigo-900 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Sucursal San Antonio
+              </span>
+            </div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight mt-1">Óptica San Antonio</h1>
+            <p className="text-xs text-slate-400 mt-1 max-w-md leading-normal">
+              Tecnología oftálmica y lentes de alta precisión para su salud visual.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3 bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 z-10 shrink-0 w-full sm:w-auto justify-center sm:justify-start">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+          <div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sincronización Clínica</div>
+            <div className="text-xs font-bold text-emerald-400 font-mono">EN LÍNEA Y ACTIVO</div>
+          </div>
+        </div>
+      </div>
+
       {/* Welcome & Quick Action Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -184,6 +319,117 @@ export default function DashboardView({
         </div>
       </div>
 
+      {/* Visualizaciones de Datos de la Clínica */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Card 1: Tendencias de Ocupación */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Tendencias de Ocupación</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Porcentaje de capacidad diaria ocupada</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+              Últimos 7 Días
+            </span>
+          </div>
+          
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={occupancyData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorOcupacion" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.01}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#94a3b8" 
+                  fontSize={10} 
+                  fontWeight={500}
+                  tickLine={false} 
+                  axisLine={false} 
+                />
+                <YAxis 
+                  stroke="#94a3b8" 
+                  fontSize={10} 
+                  fontWeight={500}
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(val) => `${val}%`}
+                  domain={[0, 100]}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area 
+                  name="Ocupación" 
+                  type="monotone" 
+                  dataKey="ocupacion" 
+                  stroke="#10b981" 
+                  strokeWidth={2.5}
+                  fillOpacity={1} 
+                  fill="url(#colorOcupacion)" 
+                  unit="%"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Card 2: Citas por Especialista / Departamento */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <BarChart2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Citas por Especialista</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Volumen acumulado de consultas</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+              Mensual
+            </span>
+          </div>
+
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={specialistData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }} barSize={36}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#94a3b8" 
+                  fontSize={10} 
+                  fontWeight={500}
+                  tickLine={false} 
+                  axisLine={false} 
+                />
+                <YAxis 
+                  stroke="#94a3b8" 
+                  fontSize={10} 
+                  fontWeight={500}
+                  tickLine={false} 
+                  axisLine={false} 
+                  allowDecimals={false}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar name="Total Consultas" dataKey="citas">
+                  {specialistData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
       {/* Grid: Main Agenda & Side Alerts */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Today's Agenda (Spans 8 cols) */}
@@ -263,10 +509,17 @@ export default function DashboardView({
                             {app.status === 'ARRIVED' ? 'LLEGÓ' : app.status === 'CHECKING IN' ? 'REGISTRÁNDOSE' : 'PROGRAMADO'}
                           </span>
                         </td>
-                        <td className="p-4 text-right">
+                        <td className="p-4 text-right flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleOpenWaModal(app)}
+                            title="Avisar por WhatsApp"
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-all active:scale-90 cursor-pointer"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => onOpenPatientChart(app.patientId)}
-                            title="Open Patient Chart"
+                            title="Ver Expediente"
                             className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-all active:scale-90 cursor-pointer"
                           >
                             <FolderOpen className="w-4 h-4" />
@@ -344,6 +597,81 @@ export default function DashboardView({
         </div>
       </div>
 
+      {/* WhatsApp Reminder Modal */}
+      <AnimatePresence>
+        {waSelectedApp && (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden border border-slate-200"
+            >
+              <div className="bg-emerald-600 text-white p-5 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-100">Notificar Cita por WhatsApp</h3>
+                  <p className="text-base font-bold mt-1">Paciente: {waSelectedApp.patientName}</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Número de Teléfono
+                  </label>
+                  <input
+                    type="text"
+                    value={waPhone}
+                    onChange={(e) => setWaPhone(e.target.value)}
+                    placeholder="ej. +56912345678"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg p-2.5 text-xs text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <p className="text-[10px] text-slate-400">Verifique que incluya el código de país sin el signo + ni espacios para asegurar compatibilidad.</p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Mensaje del Recordatorio
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={waMessage}
+                    onChange={(e) => setWaMessage(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg p-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex gap-2.5 pt-3 border-t border-slate-100">
+                  <button
+                    onClick={() => setWaSelectedApp(null)}
+                    className="flex-1 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-lg text-xs font-semibold cursor-pointer transition-colors text-center"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      const cleanNum = waPhone.replace(/[^\d+]/g, '');
+                      const url = `https://wa.me/${cleanNum}?text=${encodeURIComponent(waMessage)}`;
+                      window.open(url, '_blank');
+                      setWaSelectedApp(null);
+                      setShowToast("¡Recordatorio enviado por WhatsApp!");
+                      setTimeout(() => setShowToast(null), 3000);
+                    }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-98"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Enviar Mensaje</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Action Notifications/Toasts */}
       <AnimatePresence>
         {showToast && (
@@ -358,6 +686,6 @@ export default function DashboardView({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

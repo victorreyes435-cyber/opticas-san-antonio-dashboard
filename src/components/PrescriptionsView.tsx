@@ -30,8 +30,19 @@ export default function PrescriptionsView({
   setPrescriptions,
   searchQuery
 }: PrescriptionsViewProps) {
-  // Find current patient data
-  const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0];
+  // Find current patient data with robust fallback
+  const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0] || {
+    id: '',
+    name: 'Cargando...',
+    dob: '',
+    age: 0,
+    sex: '',
+    bloodType: '',
+    phone: '',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    allergies: [],
+    chronicConditions: []
+  };
 
   // Filter prescriptions based on search query
   const filteredPrescriptions = prescriptions.filter(rx => {
@@ -209,13 +220,17 @@ export default function PrescriptionsView({
     return opts.length > 0 ? opts.join(", ") : "Ninguno";
   };
 
+  if (patients.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center w-full">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-medium text-slate-500">Cargando datos de pacientes...</p>
+      </div>
+    );
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -15 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {/* Header welcome text */}
       <div>
         <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Receta de Lentes</h2>
@@ -548,9 +563,9 @@ export default function PrescriptionsView({
           <div className="bg-slate-100 rounded-xl p-3 shadow-inner border border-slate-200 flex flex-col min-h-[480px]">
             <div className="bg-white rounded-lg p-5 flex flex-col flex-grow text-xs border border-slate-200 relative overflow-hidden select-none">
               
-              {/* OphthalmoPro Print Head */}
+              {/* Ópticas San Antonio Print Head */}
               <div className="text-center border-b border-slate-100 pb-3.5 mb-3.5">
-                <h4 className="text-base font-bold text-slate-800 tracking-tight">Clínica OphthalmoPro</h4>
+                <h4 className="text-base font-bold text-indigo-600 tracking-tight">Ópticas San Antonio</h4>
                 <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
                   123 Plaza Clínica, Suite 400<br />Metrópolis, NY 10001 | Tel: (555) 012-3456
                 </p>
@@ -662,6 +677,6 @@ export default function PrescriptionsView({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

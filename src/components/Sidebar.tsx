@@ -1,11 +1,13 @@
 import { LayoutDashboard, Calendar, Users, FileText, Settings, HelpCircle, Eye } from 'lucide-react';
+import { UserProfile } from '../types';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  userProfile?: UserProfile;
 }
 
-export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, userProfile }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', label: 'Panel Principal', icon: LayoutDashboard },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
@@ -21,8 +23,8 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
           <Eye className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white tracking-tight leading-none">OphthalmoPro</h1>
-          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mt-1">Suite Clínica</p>
+          <h1 className="text-sm font-bold text-white tracking-tight leading-none">Ópticas San Antonio</h1>
+          <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider mt-1">Suite Clínica</p>
         </div>
       </div>
 
@@ -80,17 +82,17 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
           </li>
         </ul>
 
-        {/* Practitioner profile summary inside sidebar */}
+        {/* Dynamic Practitioner Profile summary */}
         <div className="mt-5 flex items-center space-x-3 px-3 py-2.5 bg-slate-800/50 rounded-lg border border-slate-800">
           <img
             alt="Practitioner Profile"
             className="w-8 h-8 rounded-full object-cover border border-slate-700"
-            src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80"
+            src={userProfile?.avatar || "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80"}
             referrerPolicy="no-referrer"
           />
           <div className="overflow-hidden flex-1 min-w-0">
-            <p className="text-xs font-bold text-white truncate">Dr. S. Miller</p>
-            <p className="text-[10px] text-slate-500 truncate">Optometrista</p>
+            <p className="text-xs font-bold text-white truncate">{userProfile?.name || "Dr. S. Miller"}</p>
+            <p className="text-[10px] text-slate-500 truncate">{userProfile?.role || "Tecnólogo Médico"}</p>
           </div>
         </div>
       </div>

@@ -84,3 +84,10 @@ export interface VisitHistoryItem {
   provider: string;
   icon: 'visibility' | 'science' | 'healing';
 }
+
+export interface UserProfile {
+  name: string;
+  role: 'Recepcionista' | 'Tecnólogo Médico';
+  avatar: string;
+}
+

@@ -1,12 +1,21 @@
 import { Search, Bell, History, Plus } from 'lucide-react';
+import { UserProfile } from '../types';
 
 interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  userProfile?: UserProfile;
+  onProfileClick?: () => void;
   onNewAppointmentClick: () => void;
 }
 
-export default function Header({ searchQuery, setSearchQuery, onNewAppointmentClick }: HeaderProps) {
+export default function Header({ 
+  searchQuery, 
+  setSearchQuery, 
+  userProfile, 
+  onProfileClick, 
+  onNewAppointmentClick 
+}: HeaderProps) {
   return (
     <header className="h-16 fixed top-0 right-0 left-0 lg:left-64 z-10 bg-white border-b border-slate-200 flex justify-between items-center px-4 md:px-8 shadow-sm">
       {/* Title & Search bar */}
@@ -63,13 +72,27 @@ export default function Header({ searchQuery, setSearchQuery, onNewAppointmentCl
           <span>Nueva Cita</span>
         </button>
 
-        {/* Doctor Avatar */}
-        <img
-          alt="Dr S Miller Avatar"
-          className="w-8 h-8 rounded-full object-cover border border-slate-200 ml-1 hover:opacity-90 transition-opacity cursor-pointer"
-          src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80"
-          referrerPolicy="no-referrer"
-        />
+        {/* Interactive Active User Profile Button */}
+        <button
+          onClick={onProfileClick}
+          className="flex items-center gap-2 hover:bg-slate-50 p-1.5 rounded-lg border border-slate-100 transition-all cursor-pointer active:scale-95 text-slate-700"
+          title="Configuración de Usuario"
+        >
+          <img
+            alt={userProfile?.name || "Dr S Miller Avatar"}
+            className="w-8 h-8 rounded-full object-cover border border-slate-200 group-hover:opacity-90"
+            src={userProfile?.avatar || "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80"}
+            referrerPolicy="no-referrer"
+          />
+          <div className="text-left hidden md:block max-w-[120px]">
+            <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">
+              {userProfile?.name || "Dr. S. Miller"}
+            </p>
+            <p className="text-[9px] text-indigo-600 font-semibold uppercase tracking-wider truncate leading-none mt-0.5">
+              {userProfile?.role || "Tecnólogo Médico"}
+            </p>
+          </div>
+        </button>
       </div>
     </header>
   );

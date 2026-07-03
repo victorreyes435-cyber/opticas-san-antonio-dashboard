@@ -12,9 +12,10 @@ import {
   CheckCircle,
   FileText,
   UserPlus,
-  BookOpen
+  BookOpen,
+  Printer
 } from 'lucide-react';
-import { Patient, VisitHistoryItem } from '../types';
+import { Patient, VisitHistoryItem, Prescription } from '../types';
 
 interface PatientsViewProps {
   patients: Patient[];
@@ -25,6 +26,7 @@ interface PatientsViewProps {
   onSwitchToPrescriptions: () => void;
   onAddPatientClick: () => void;
   searchQuery: string;
+  prescriptions: Prescription[];
 }
 
 export default function PatientsView({ 
@@ -35,10 +37,25 @@ export default function PatientsView({
   setVisitHistory,
   onSwitchToPrescriptions,
   onAddPatientClick,
-  searchQuery
+  searchQuery,
+  prescriptions
 }: PatientsViewProps) {
-  // Find current patient data
-  const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0];
+  // Find current patient data with robust fallback to prevent Uncaught TypeError on empty arrays
+  const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0] || {
+    id: '',
+    name: 'Cargando...',
+    dob: '',
+    age: 0,
+    sex: '',
+    bloodType: '',
+    phone: '',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    allergies: [],
+    chronicConditions: []
+  };
+
+  // Find current prescriptions for printing safely
+  const currentPrescriptions = currentPatient.id ? prescriptions.filter(rx => rx.patientId === currentPatient.id) : [];
 
   // Filter patients based on search query for select dropdown
   const filteredDropdownPatients = patients.filter(p => {
@@ -72,9 +89,9 @@ export default function PatientsView({
   const [activeSubTab, setActiveSubTab] = useState<'consultation' | 'register' | 'history' | 'rx'>('consultation');
 
   // Interactive Form States
-  const [chiefComplaint, setChiefComplaint] = useState('Patient reports blurry vision, especially at night. Experiences occasional dryness and fatigue during long computer reading shifts.');
-  const [hpi, setHpi] = useState('Began approximately 3 months ago. Gradually progressive. No sudden loss of vision. Describes difficulty focusing on text in low light.');
-  const [ros, setRos] = useState('No headaches, no flashes of light, no floaters. Experiences mild burning and irritation by evening hours.');
+  const [chiefComplaint, setChiefComplaint] = useState('El paciente reporta visión borrosa, especialmente de noche. Experimenta sequedad ocular ocasional y fatiga durante turnos prolongados de lectura en computadora.');
+  const [hpi, setHpi] = useState('Comenzó hace aproximadamente 3 meses. Progresivo de manera gradual. Sin pérdida repentina de visión. Describe dificultad para enfocar texto con poca luz.');
+  const [ros, setRos] = useState('Sin dolores de cabeza, sin destellos de luz ni moscas volantes. Experimenta ardor leve e irritación por las tardes.');
   
   // Vitals State
   const [bp, setBp] = useState('120/80');
@@ -118,13 +135,17 @@ export default function PatientsView({
     }, 1200);
   };
 
+  if (patients.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center w-full">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-medium text-slate-500">Cargando datos de pacientes...</p>
+      </div>
+    );
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -15 }}
-      className="flex flex-col xl:flex-row gap-6 items-start"
-    >
+    <div className="flex flex-col xl:flex-row gap-6 items-start">
       {/* LEFT SIDEBAR: Patient profile & Selection */}
       <aside className="w-full xl:w-80 shrink-0 flex flex-col gap-6">
         
@@ -143,7 +164,7 @@ export default function PatientsView({
             </select>
             <button 
               onClick={onAddPatientClick}
-              title="Add New Patient"
+              title="Añadir Nuevo Paciente"
               className="p-2 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 hover:bg-indigo-100/50 active:scale-95 cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
@@ -221,6 +242,26 @@ export default function PatientsView({
 
       {/* MAIN ENCOUNTER WORKSPACE */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
+        {/* Action Bar / Patient Detail Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm print:hidden">
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
+              <FileText className="w-5 h-5" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Ficha Clínica de {currentPatient.name}</h2>
+              <p className="text-[10px] text-slate-500 font-mono">ID de Paciente: {currentPatient.id}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer w-full sm:w-auto"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Imprimir Resumen Clínico (PDF)</span>
+          </button>
+        </div>
+
         {/* Tabs Headers */}
         <div className="bg-white rounded-t-xl border-x border-t border-slate-200 overflow-hidden">
           <nav className="flex border-b border-slate-200 divide-x divide-slate-100 text-xs">
@@ -453,6 +494,208 @@ export default function PatientsView({
           </div>
         </div>
       </div>
-    </motion.div>
+
+      {/* PRINT-ONLY CLINICAL SUMMARY (PDF) */}
+      <div className="hidden print:block print-clinical-summary p-8 font-sans text-black bg-white max-w-4xl mx-auto">
+        {/* Letterhead */}
+        <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">OPHTHALMOPRO CLINICAL SUITE</h1>
+            <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Resumen Clínico y Ficha del Paciente</p>
+          </div>
+          <div className="text-right text-[10px] text-slate-500 font-mono">
+            <p>Fecha de Emisión: {new Date().toLocaleDateString('es-ES')}</p>
+            <p>Sistema Clínico de Oftalmología</p>
+          </div>
+        </div>
+
+        {/* Patient Profile Section */}
+        <div className="mb-6">
+          <h2 className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1.5 rounded mb-3 uppercase tracking-wide">1. Información General del Paciente</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+            <div>
+              <span className="font-bold text-slate-500 block uppercase text-[9px]">Nombre Completo</span>
+              <span className="font-semibold text-slate-800">{currentPatient.name}</span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-500 block uppercase text-[9px]">ID del Paciente</span>
+              <span className="font-semibold text-slate-800">{currentPatient.id}</span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-500 block uppercase text-[9px]">Fecha de Nacimiento / Edad</span>
+              <span className="font-semibold text-slate-800">{currentPatient.dob} ({currentPatient.age} años)</span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-500 block uppercase text-[9px]">Sexo</span>
+              <span className="font-semibold text-slate-800">
+                {currentPatient.sex === 'Male' ? 'Masculino' : currentPatient.sex === 'Female' ? 'Femenino' : currentPatient.sex}
+              </span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-500 block uppercase text-[9px]">Grupo Sanguíneo</span>
+              <span className="font-semibold text-slate-800">{currentPatient.bloodType}</span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-500 block uppercase text-[9px]">Teléfono de Contacto</span>
+              <span className="font-semibold text-slate-800">{currentPatient.phone}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Clinical History & Background */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="border border-slate-200 rounded p-4">
+            <h3 className="text-xs font-bold text-red-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+              <span>⚠️</span> Alergias registradas
+            </h3>
+            {currentPatient.allergies.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {currentPatient.allergies.map(allergy => (
+                  <span key={allergy} className="bg-red-50 text-red-800 border border-red-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                    {allergy}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 italic">No se reportan alergias conocidas.</p>
+            )}
+          </div>
+
+          <div className="border border-slate-200 rounded p-4">
+            <h3 className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+              <span>📋</span> Condiciones Crónicas
+            </h3>
+            {currentPatient.chronicConditions.length > 0 ? (
+              <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+                {currentPatient.chronicConditions.map(cond => (
+                  <li key={cond}>{cond}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-slate-500 italic">No se registran condiciones crónicas permanentes.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Current Optical Prescriptions (Recetas Activas) */}
+        <div className="mb-6">
+          <h2 className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1.5 rounded mb-3 uppercase tracking-wide">2. Recetas Ópticas Activas</h2>
+          {currentPrescriptions.length > 0 ? (
+            <div className="space-y-6">
+              {currentPrescriptions.map((rx) => (
+                <div key={rx.id} className="border border-slate-200 rounded p-4">
+                  <div className="flex justify-between items-center mb-3 text-xs border-b pb-2">
+                    <span className="font-bold text-indigo-600">ID de Receta: {rx.id}</span>
+                    <span className="text-slate-500">Fecha de Examen: {rx.date}</span>
+                    <span className="font-bold">Especialista: {rx.doctorName}</span>
+                  </div>
+
+                  {/* Refraction Table */}
+                  <table className="w-full text-left border-collapse text-xs mb-4">
+                    <thead>
+                      <tr className="border-b bg-slate-50">
+                        <th className="p-1 font-bold text-slate-600">Ojo</th>
+                        <th className="p-1 font-bold text-slate-600">Esfera (SPH)</th>
+                        <th className="p-1 font-bold text-slate-600">Cilindro (CYL)</th>
+                        <th className="p-1 font-bold text-slate-600">Eje (AXIS)</th>
+                        <th className="p-1 font-bold text-slate-600">Adición (ADD)</th>
+                        <th className="p-1 font-bold text-slate-600">D. Pupilar (PD)</th>
+                        <th className="p-1 font-bold text-slate-600">Prisma</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      <tr>
+                        <td className="p-1.5 font-bold">OD (Derecho)</td>
+                        <td className="p-1.5 font-semibold">{rx.od.sph}</td>
+                        <td className="p-1.5">{rx.od.cyl}</td>
+                        <td className="p-1.5">{rx.od.axis}°</td>
+                        <td className="p-1.5">{rx.od.add}</td>
+                        <td className="p-1.5">{rx.od.pd} mm</td>
+                        <td className="p-1.5">{rx.od.prism}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-1.5 font-bold">OS (Izquierdo)</td>
+                        <td className="p-1.5 font-semibold">{rx.os.sph}</td>
+                        <td className="p-1.5">{rx.os.cyl}</td>
+                        <td className="p-1.5">{rx.os.axis}°</td>
+                        <td className="p-1.5">{rx.os.add}</td>
+                        <td className="p-1.5">{rx.os.pd} mm</td>
+                        <td className="p-1.5">{rx.os.prism}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="font-bold text-slate-500 block">Tipo de Lente:</span>
+                      <span className="font-semibold text-slate-800">
+                        {rx.lensType === 'Progressive' ? 'Progresivo' : rx.lensType === 'Bifocal' ? 'Bifocal' : 'Visión Sencilla'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-500 block">Tratamientos / Filtros:</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {rx.coatings.antiReflective && <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px]">Anti-reflejo</span>}
+                        {rx.coatings.uvProtection && <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px]">Protección UV</span>}
+                        {rx.coatings.blueLightFilter && <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px]">Filtro Luz Azul</span>}
+                        {rx.coatings.photochromic && <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px]">Fotosensible (Transition)</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {rx.notes && (
+                    <div className="mt-3 bg-slate-50 p-2.5 rounded border border-slate-100 text-[11px] text-slate-600">
+                      <span className="font-bold text-slate-700 block mb-0.5">Notas Clínicas de la Receta:</span>
+                      <p>{rx.notes}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 italic">No se han registrado recetas ópticas para este paciente.</p>
+          )}
+        </div>
+
+        {/* Visit History Timeline (Historial Clínico) */}
+        <div className="mb-8">
+          <h2 className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1.5 rounded mb-3 uppercase tracking-wide">3. Historial de Consultas y Procedimientos</h2>
+          {filteredVisitHistory.length > 0 ? (
+            <div className="space-y-4">
+              {filteredVisitHistory.map((visit) => (
+                <div key={visit.id} className="border-l-2 border-indigo-600 pl-4 py-1 text-xs">
+                  <div className="flex justify-between items-start font-bold text-slate-800 mb-1">
+                    <span>{visit.type}</span>
+                    <span className="text-slate-400 font-normal">{visit.date}</span>
+                  </div>
+                  <p className="text-slate-600 leading-relaxed font-medium mb-1">{visit.notes}</p>
+                  <span className="text-[10px] text-slate-400 font-mono">Realizado por: {visit.provider}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 italic">No se registra historial de visitas médicas previas en el sistema.</p>
+          )}
+        </div>
+
+        {/* Signature Box */}
+        <div className="mt-12 pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-center text-xs">
+          <div>
+            <div className="h-16"></div>
+            <div className="border-t border-slate-300 pt-2 w-48 mx-auto">
+              <p className="font-bold text-slate-800">Firma del Especialista</p>
+              <p className="text-[10px] text-slate-500">Sello Clínico Ópticas San Antonio</p>
+            </div>
+          </div>
+          <div>
+            <div className="h-16"></div>
+            <div className="border-t border-slate-300 pt-2 w-48 mx-auto">
+              <p className="font-bold text-slate-800">Firma del Paciente</p>
+              <p className="text-[10px] text-slate-500">Consentimiento de Resumen Clínico</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

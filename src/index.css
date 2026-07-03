@@ -1,6 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
+:root {
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+  --white: #ffffff;
+}
+
+:root.dark {
+  --slate-50: #0b0f19;
+  --slate-100: #121b2d;
+  --slate-200: #1e293b;
+  --slate-300: #334155;
+  --slate-400: #64748b;
+  --slate-500: #cbd5e1;
+  --slate-600: #f1f5f9;
+  --slate-700: #f8fafc;
+  --slate-800: #ffffff;
+  --slate-900: #0a0e1a;
+  --slate-950: #05070f;
+  --white: #131c2e;
+}
+
 @theme {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
@@ -15,6 +45,20 @@
   --color-[#007399]: #4338ca;
   --color-[#337AB7]: #6366f1;
   --color-[#006385]: #4f46e5;
+
+  /* Overriding default Tailwind slate and white colors with custom CSS variables */
+  --color-slate-50: var(--slate-50);
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-400: var(--slate-400);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900);
+  --color-slate-950: var(--slate-950);
+  --color-white: var(--white);
 }
 
 /* Custom Scrollbars */
@@ -26,32 +70,36 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--slate-300);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--slate-400);
 }
 
 body {
   font-family: "Manrope", sans-serif;
-  background-color: #f8fafc;
+  background-color: var(--slate-50);
+  color: var(--slate-800);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Printing styles for prescription template preview */
+/* Printing styles for prescription template preview & clinical summary */
 @media print {
   body * {
     visibility: hidden;
   }
-  .bg-gray-200.rounded-xl, .bg-gray-200.rounded-xl * {
+  .bg-gray-200.rounded-xl, .bg-gray-200.rounded-xl *,
+  .print-clinical-summary, .print-clinical-summary * {
     visibility: visible;
   }
-  .bg-gray-200.rounded-xl {
+  .bg-gray-200.rounded-xl, .print-clinical-summary {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
     border: none;
-    background: transparent !important;
+    background: white !important;
+    color: black !important;
   }
 }

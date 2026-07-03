@@ -1,4 +1,4 @@
-import { useState, Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ChevronLeft, 
@@ -10,13 +10,17 @@ import {
   HelpCircle,
   Plus,
   Eye,
-  Trash2
+  Trash2,
+  Download,
+  MessageSquare,
+  Phone
 } from 'lucide-react';
-import { Appointment, Technologist } from '../types';
+import { Appointment, Technologist, Patient } from '../types';
 import { TECHNOLOGISTS } from '../data';
 
 interface AgendaViewProps {
   appointments: Appointment[];
+  patients: Patient[];
   setAppointments: Dispatch<SetStateAction<Appointment[]>>;
   onOpenPatientChart: (patientId: string) => void;
   onAddAppointmentClick: () => void;
@@ -25,6 +29,7 @@ interface AgendaViewProps {
 
 export default function AgendaView({ 
   appointments, 
+  patients,
   setAppointments,
   onOpenPatientChart,
   onAddAppointmentClick,
@@ -34,6 +39,54 @@ export default function AgendaView({
   const [currentDay, setCurrentDay] = useState<number>(12);
   const [viewMode, setViewMode] = useState<'Day' | 'Week'>('Week');
 
+  // Appointment detail popup
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+
+  // WhatsApp states
+  const [waPhone, setWaPhone] = useState<string>('');
+  const [waMessage, setWaMessage] = useState<string>('');
+  const [showWaPanel, setShowWaPanel] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (selectedAppointment) {
+      const patient = patients?.find(p => p.id === selectedAppointment.patientId);
+      const phone = patient ? patient.phone : '';
+      setWaPhone(phone);
+      
+      const tech = TECHNOLOGISTS.find(t => t.id === selectedAppointment.technologistId) || { name: 'Especialista' };
+      const apptDate = `${currentDay} de Octubre de 2023`;
+      const msg = `Hola *${selectedAppointment.patientName}*, le recordamos su cita programada para el día *${apptDate}* a las *${selectedAppointment.time}* con el especialista *${tech.name}* en *Ópticas San Antonio*. Por favor, confirme su asistencia respondiendo a este mensaje. ¡Le esperamos!`;
+      setWaMessage(msg);
+      setShowWaPanel(false);
+    }
+  }, [selectedAppointment, currentDay, patients]);
+
+  const handleExportCSV = () => {
+    const headers = ["ID Cita", "Paciente", "ID Paciente", "Horario", "Sala", "Tecnologo ID", "Motivo", "Estado", "Prioridad"];
+    const rows = appointments.map(apt => [
+      apt.id,
+      apt.patientName,
+      apt.patientId,
+      apt.time,
+      apt.room,
+      apt.technologistId,
+      apt.reason,
+      apt.status,
+      apt.priority || "Normal"
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+      + [headers.join(","), ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))].join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `agenda_clinica_ophthalmopro_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Filter States
   const [selectedTechs, setSelectedTechs] = useState<string[]>(['dr_reynolds', 'sarah_chen']);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([
@@ -42,9 +95,6 @@ export default function AgendaView({
     'Room 3 (Standard)'
   ]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['Confirmed', 'Pending', 'Completed']);
-
-  // Appointment detail popup
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   // Toggle checks helper
   const handleTechToggle = (id: string) => {
@@ -102,12 +152,7 @@ export default function AgendaView({
   });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -15 }}
-      className="flex flex-col xl:flex-row gap-6 h-[calc(100vh-8.5rem)] overflow-hidden"
-    >
+    <div className="flex flex-col xl:flex-row gap-6 h-[calc(100vh-8.5rem)] overflow-hidden">
       {/* LEFT SIDEBAR: Mini Calendar & Filters */}
       <aside className="w-full xl:w-72 shrink-0 flex flex-col gap-6 overflow-y-auto pr-1">
         {/* October 2023 Mini-Calendar */}
@@ -277,6 +322,14 @@ export default function AgendaView({
           </div>
 
           <div className="flex items-center gap-3">
+            <button 
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer mr-2"
+              title="Exportar citas a formato CSV"
+            >
+              <Download className="w-4 h-4 text-indigo-500" />
+              <span>Exportar CSV</span>
+            </button>
             <button 
               onClick={() => window.print()}
               className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer"
@@ -537,6 +590,63 @@ export default function AgendaView({
                   </div>
                 </div>
 
+                {/* Seccion Recordatorio de WhatsApp */}
+                <div className="pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowWaPanel(!showWaPanel)}
+                    className="w-full flex items-center justify-between p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold transition-all text-xs cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-4 h-4 text-emerald-600" />
+                      <span>Recordatorio por WhatsApp</span>
+                    </span>
+                    <span className="text-[10px]">{showWaPanel ? '▲' : '▼'}</span>
+                  </button>
+
+                  {showWaPanel && (
+                    <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                          Número de Teléfono
+                        </label>
+                        <input
+                          type="text"
+                          value={waPhone}
+                          onChange={(e) => setWaPhone(e.target.value)}
+                          placeholder="ej. +56912345678"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 font-mono text-[11px] text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                          Mensaje de Recordatorio
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={waMessage}
+                          onChange={(e) => setWaMessage(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-[11px] text-slate-700 focus:outline-none focus:border-emerald-600 resize-none leading-normal"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cleanNum = waPhone.replace(/[^\d+]/g, '');
+                          const url = `https://wa.me/${cleanNum}?text=${encodeURIComponent(waMessage)}`;
+                          window.open(url, '_blank');
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all active:scale-98"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Abrir WhatsApp</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2 pt-3 border-t border-slate-100">
                   <button
                     onClick={() => {
@@ -569,6 +679,6 @@ export default function AgendaView({
           </div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
