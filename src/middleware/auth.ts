@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { adminAuth } from '../lib/firebase-admin.ts';
 import { DecodedIdToken } from 'firebase-admin/auth';
 
 export interface AuthRequest extends Request {
@@ -11,18 +10,22 @@ export const requireAuth = async (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: Missing token' });
-  }
-
-  const token = authHeader.split('Bearer ')[1];
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    req.user = decodedToken;
-    next();
-  } catch (error) {
-    console.error('Error verifying Firebase ID token:', error);
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-  }
+  // Automatically authorize and inject the mock user decoded token for a seamless, login-free experience
+  req.user = {
+    uid: 'default-user',
+    email: 'dr.miller@optica.com',
+    name: 'Dr. S. Miller',
+    picture: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
+    iss: 'https://securetoken.google.com/mock',
+    aud: 'mock',
+    auth_time: Date.now() / 1000,
+    sub: 'default-user',
+    exp: Date.now() / 1000 + 3600,
+    firebase: {
+      identities: {},
+      sign_in_provider: 'google.com'
+    }
+  } as any as DecodedIdToken;
+  
+  next();
 };

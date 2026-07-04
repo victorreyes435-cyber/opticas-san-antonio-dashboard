@@ -1263,7 +1263,6 @@ export default function App() {
         onClose={() => setShowProfileModal(false)}
         profile={userProfile}
         onChangeProfile={handleProfileChange}
-        onLogout={logOut}
       />
 
       {/* Bottom Navigation tab bar */}

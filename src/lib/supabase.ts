@@ -1,18 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 import { Patient, Appointment, Prescription } from '../types';
 
-const supabaseUrl = ((import.meta as any).env?.VITE_SUPABASE_URL) || '';
-const supabaseAnonKey = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY) || '';
+const getSupabaseUrlAndKey = () => {
+  const url = (((import.meta as any).env?.VITE_SUPABASE_URL) || '').trim();
+  const key = (((import.meta as any).env?.VITE_SUPABASE_ANON_KEY) || '').trim();
+  return { url, key };
+};
 
-export const isSupabaseConfigured = 
-  supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl !== 'YOUR_SUPABASE_URL' && 
-  supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' &&
-  !supabaseUrl.includes('placeholder');
+const { url: rawUrl, key: rawKey } = getSupabaseUrlAndKey();
+
+const validateSupabaseConfig = (urlStr: string, keyStr: string): boolean => {
+  if (!urlStr || !keyStr) return false;
+  if (urlStr === 'YOUR_SUPABASE_URL' || keyStr === 'YOUR_SUPABASE_ANON_KEY') return false;
+  if (urlStr.includes('placeholder') || keyStr.includes('placeholder')) return false;
+  
+  try {
+    const parsed = new URL(urlStr);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+export const isSupabaseConfigured = validateSupabaseConfig(rawUrl, rawKey);
 
 export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
+  ? createClient(rawUrl, rawKey) 
   : null;
 
 // Helper to get raw supabase client if needed

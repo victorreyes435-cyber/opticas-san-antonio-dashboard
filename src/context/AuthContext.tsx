@@ -21,47 +21,35 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const mockUser = {
+    uid: 'default-user',
+    email: 'dr.miller@optica.com',
+    displayName: 'Dr. S. Miller',
+    photoURL: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
+    emailVerified: true,
+    isAnonymous: false,
+    metadata: {},
+    providerData: [],
+    refreshToken: '',
+    tenantId: null,
+    delete: async () => {},
+    getIdToken: async () => 'mock-token',
+    getIdTokenResult: async () => ({}) as any,
+    reload: async () => {},
+    toJSON: () => ({}),
+  } as any as User;
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        const idToken = await currentUser.getIdToken(true);
-        setToken(idToken);
-      } else {
-        setToken(null);
-        setGoogleToken(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const [user] = useState<User | null>(mockUser);
+  const [token] = useState<string | null>('mock-token');
+  const [googleToken, setGoogleToken] = useState<string | null>('mock-google-token');
+  const [loading] = useState(false);
 
   const signIn = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleAuthProvider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        setGoogleToken(credential.accessToken);
-      }
-    } catch (error) {
-      console.error('Sign in failed:', error);
-      throw error;
-    }
+    // No-op for bypassed login
   };
 
   const logOut = async () => {
-    try {
-      await signOut(auth);
-      setGoogleToken(null);
-    } catch (error) {
-      console.error('Sign out failed:', error);
-    }
+    // No-op for bypassed login
   };
 
   return (
