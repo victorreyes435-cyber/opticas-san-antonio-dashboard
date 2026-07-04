@@ -81,8 +81,8 @@ export default function App() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [visitHistory, setVisitHistory] = useState<VisitHistoryItem[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    name: 'Dr. S. Miller',
-    role: 'Tecnólogo Médico',
+    name: 'Usuario',
+    role: 'Recepcionista',
     avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80'
   });
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -104,6 +104,7 @@ export default function App() {
 
   // New Appointment Form state
   const [newAppPatientId, setNewAppPatientId] = useState('');
+  const [newAppPatientName, setNewAppPatientName] = useState('');
   const [newAppDate, setNewAppDate] = useState<string>(() => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -190,6 +191,33 @@ export default function App() {
     triggerToast("Expediente del paciente cargado con éxito.");
   };
 
+  const handleDeletePatient = async (id: string) => {
+    try {
+      await firebaseService.deletePatient(id);
+      setPatients(prev => prev.filter(p => p.id !== id));
+      if (selectedPatientId === id) {
+        setSelectedPatientId(patients.find(p => p.id !== id)?.id || '');
+      }
+      triggerToast('Paciente eliminado');
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      triggerToast('Error al eliminar paciente', true);
+    }
+  };
+
+  const handleDeleteUser = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm('¿Estás seguro de que quieres eliminar a este usuario?')) return;
+    try {
+      await firebaseService.deleteUser(id);
+      setAllUsers(prev => prev.filter(u => u.id !== id));
+      triggerToast('Usuario eliminado');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      triggerToast('Error al eliminar usuario', true);
+    }
+  };
+
   const handleCreateAppointmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -205,13 +233,17 @@ export default function App() {
       return;
     }
 
-    const patientObj = patients.find(p => p.id === newAppPatientId) || patients[0];
+    const isNewPatient = newAppPatientId === 'NEW';
+    const patientObj = isNewPatient ? null : (patients.find(p => p.id === newAppPatientId) || patients[0]);
     
+    const actualPatientName = isNewPatient ? newAppPatientName : (patientObj ? patientObj.name : 'Unknown Patient');
+    const actualPatientId = isNewPatient ? `NUEVO-${Date.now()}` : (patientObj ? patientObj.id : newAppPatientId);
+
     const newAptPayload: Appointment = {
       id: `apt_${Date.now()}`,
       time: newAppTime,
-      patientId: newAppPatientId,
-      patientName: patientObj ? patientObj.name : 'Unknown Patient',
+      patientId: actualPatientId,
+      patientName: actualPatientName,
       reason: newAppReason,
       status: 'SCHEDULED',
       technologistId: newAppTech,
@@ -558,6 +590,7 @@ export default function App() {
                   setVisitHistory={handleSetVisitHistory}
                   onSwitchToPrescriptions={() => setActiveTab('prescriptions')}
                   onAddPatientClick={() => setShowPatientModal(true)}
+                  onDeletePatient={handleDeletePatient}
                   searchQuery={searchQuery}
                   prescriptions={prescriptions}
                 />
@@ -844,11 +877,20 @@ export default function App() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
                                   <p className="font-bold text-slate-800 text-xs truncate">{u.name}</p>
-                                  {isActive && (
-                                    <span className="bg-indigo-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0">
-                                      Activo
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-1">
+                                    {isActive && (
+                                      <span className="bg-indigo-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0">
+                                        Activo
+                                      </span>
+                                    )}
+                                    <button 
+                                      onClick={(e) => handleDeleteUser(e, u.id!)}
+                                      className="text-red-500 hover:text-red-700 bg-red-50 p-1 rounded transition-colors"
+                                      title="Eliminar usuario"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
                                 </div>
                                 <p className="text-indigo-600 font-semibold text-[9px] uppercase tracking-wider mt-0.5">{u.role}</p>
                               </div>
@@ -938,8 +980,23 @@ export default function App() {
                     {patients.map(p => (
                       <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
                     ))}
+                    <option value="NEW">Nuevo Paciente (Sin Registro)</option>
                   </select>
                 </div>
+
+                {newAppPatientId === 'NEW' && (
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-400 uppercase">Nombre del Nuevo Paciente</label>
+                    <input
+                      type="text"
+                      required
+                      value={newAppPatientName}
+                      onChange={(e) => setNewAppPatientName(e.target.value)}
+                      placeholder="ej. Juan Pérez"
+                      className="w-full border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -987,9 +1044,10 @@ export default function App() {
                       onChange={(e) => setNewAppTech(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 px-3 font-semibold text-gray-700 focus:outline-none"
                     >
-                      <option value="dr_reynolds">Dr. Reynolds</option>
-                      <option value="sarah_chen">Sarah Chen (OD)</option>
-                      <option value="marcus_pierce">Marcus Pierce</option>
+                      {allUsers.length === 0 && <option value="">Sin especialistas registrados</option>}
+                      {allUsers.map(u => (
+                        <option key={u.id || u.name} value={u.id || u.name}>{u.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

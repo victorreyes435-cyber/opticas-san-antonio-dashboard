@@ -25,6 +25,7 @@ interface PatientsViewProps {
   setVisitHistory: Dispatch<SetStateAction<VisitHistoryItem[]>>;
   onSwitchToPrescriptions: () => void;
   onAddPatientClick: () => void;
+  onDeletePatient: (id: string) => void;
   searchQuery: string;
   prescriptions: Prescription[];
 }
@@ -37,6 +38,7 @@ export default function PatientsView({
   setVisitHistory,
   onSwitchToPrescriptions,
   onAddPatientClick,
+  onDeletePatient,
   searchQuery,
   prescriptions
 }: PatientsViewProps) {
@@ -192,10 +194,6 @@ export default function PatientsView({
               <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wide">Sexo</span>
               <span className="font-semibold text-slate-700">{currentPatient.sex === 'Male' ? 'Masculino' : currentPatient.sex === 'Female' ? 'Femenino' : currentPatient.sex}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-50 pb-2">
-              <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wide">Grupo Sanguíneo</span>
-              <span className="font-semibold text-slate-700">{currentPatient.bloodType}</span>
-            </div>
             <div className="flex justify-between pb-1">
               <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wide">Teléfono</span>
               <span className="font-semibold text-slate-700">{currentPatient.phone}</span>
@@ -253,13 +251,25 @@ export default function PatientsView({
               <p className="text-[10px] text-slate-500 font-mono">ID de Paciente: {currentPatient.id}</p>
             </div>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer w-full sm:w-auto"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Imprimir Resumen Clínico (PDF)</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                if (confirm(`¿Estás seguro de que quieres eliminar al paciente ${currentPatient.name}?`)) {
+                  onDeletePatient(currentPatient.id);
+                }
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer flex-1 sm:flex-none"
+            >
+              <span>Eliminar Paciente</span>
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer flex-1 sm:flex-none"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Imprimir Resumen Clínico (PDF)</span>
+            </button>
+          </div>
         </div>
 
         {/* Tabs Headers */}
@@ -352,7 +362,7 @@ export default function PatientsView({
                   />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <label className="block font-bold text-slate-500 uppercase tracking-wide">Revisión por Sistemas (ROS)</label>
                   <textarea
                     value={ros}
@@ -361,56 +371,6 @@ export default function PatientsView({
                     placeholder="Hallazgos positivos y negativos pertinentes..."
                     className="w-full rounded-lg border border-slate-200 p-3 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 resize-none"
                   />
-                </div>
-
-                {/* Vitals Bento Box */}
-                <div className="md:col-span-2 bg-slate-50 rounded-lg p-5 border border-slate-100">
-                  <h4 className="font-bold text-xs text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                    <Heart className="w-4 h-4 text-red-500" />
-                    <span>Signos Vitales y Métricas Iniciales</span>
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <label className="block font-semibold text-slate-500 text-[10px] uppercase">BP (mmHg)</label>
-                      <input
-                        type="text"
-                        value={bp}
-                        onChange={(e) => setBp(e.target.value)}
-                        placeholder="120/80"
-                        className="w-full bg-white rounded border border-slate-200 py-1.5 px-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block font-semibold text-slate-500 text-[10px] uppercase">HR (bpm)</label>
-                      <input
-                        type="text"
-                        value={hr}
-                        onChange={(e) => setHr(e.target.value)}
-                        placeholder="72"
-                        className="w-full bg-white rounded border border-slate-200 py-1.5 px-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block font-semibold text-slate-500 text-[10px] uppercase">IOP OD (mmHg)</label>
-                      <input
-                        type="text"
-                        value={iopOD}
-                        onChange={(e) => setIopOD(e.target.value)}
-                        placeholder="15"
-                        className="w-full bg-white rounded border border-slate-200 py-1.5 px-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block font-semibold text-slate-500 text-[10px] uppercase">IOP OS (mmHg)</label>
-                      <input
-                        type="text"
-                        value={iopOS}
-                        onChange={(e) => setIopOS(e.target.value)}
-                        placeholder="16"
-                        className="w-full bg-white rounded border border-slate-200 py-1.5 px-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600"
-                      />
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -530,10 +490,6 @@ export default function PatientsView({
               <span className="font-semibold text-slate-800">
                 {currentPatient.sex === 'Male' ? 'Masculino' : currentPatient.sex === 'Female' ? 'Femenino' : currentPatient.sex}
               </span>
-            </div>
-            <div>
-              <span className="font-bold text-slate-500 block uppercase text-[9px]">Grupo Sanguíneo</span>
-              <span className="font-semibold text-slate-800">{currentPatient.bloodType}</span>
             </div>
             <div>
               <span className="font-bold text-slate-500 block uppercase text-[9px]">Teléfono de Contacto</span>

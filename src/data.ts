@@ -79,29 +79,7 @@ export const INITIAL_PATIENTS: Patient[] = [
   }
 ];
 
-export const TECHNOLOGISTS: Technologist[] = [
-  {
-    id: 'dr_reynolds',
-    name: 'Dr. Reynolds',
-    initials: 'DR',
-    role: 'Oftalmólogo',
-    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'sarah_chen',
-    name: 'Dra. Sarah Chen (OD)',
-    initials: 'SC',
-    role: 'Optometrista',
-    avatar: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'marcus_pierce',
-    name: 'Marcus Pierce',
-    initials: 'MP',
-    role: 'Asistente Clínico',
-    avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=150&auto=format&fit=crop&q=80'
-  }
-];
+export const TECHNOLOGISTS: Technologist[] = [];
 
 export const INITIAL_PRESCRIPTIONS: Prescription[] = [
   {
@@ -164,7 +142,7 @@ export const INITIAL_PRESCRIPTIONS: Prescription[] = [
     patientName: 'Robert Williams',
     patientDob: '1948-07-09',
     date: '2023-10-25',
-    doctorName: 'Dr. S. Miller',
+    doctorName: 'Usuario',
     od: { sph: '+2.50', cyl: '-1.00', axis: '015', add: '+2.50', pd: '34.0', prism: '1.5 BI' },
     os: { sph: '+2.25', cyl: '-1.25', axis: '165', add: '+2.50', pd: '33.5', prism: '1.5 BI' },
     lensType: 'Bifocal',
@@ -178,68 +156,6 @@ export const INITIAL_PRESCRIPTIONS: Prescription[] = [
   }
 ];
 
-export const INITIAL_APPOINTMENTS: Appointment[] = [
-  {
-    id: 'apt_1',
-    time: '09:00 AM',
-    patientId: 'OP-10492',
-    patientName: 'Robert Jenkins',
-    reason: 'Examen Completo',
-    status: 'ARRIVED',
-    technologistId: 'dr_reynolds',
-    room: 'Sala 1 (OCT)',
-    priority: 'Normal'
-  },
-  {
-    id: 'apt_2',
-    time: '09:45 AM',
-    patientId: 'OP-09881',
-    patientName: 'Sarah Lewis',
-    reason: 'Seguimiento de Glaucoma',
-    status: 'CHECKING IN',
-    technologistId: 'sarah_chen',
-    room: 'Sala 2 (Campo Visual)',
-    priority: 'Normal'
-  },
-  {
-    id: 'apt_3',
-    time: '10:30 AM',
-    patientId: 'OP-11002',
-    patientName: 'Marcus Chen',
-    reason: 'Adaptación de Lentes de Contacto',
-    status: 'SCHEDULED',
-    technologistId: 'marcus_pierce',
-    room: 'Sala 3 (Estándar)',
-    priority: 'Normal'
-  },
-  {
-    id: 'apt_4',
-    time: '11:15 AM',
-    patientId: 'OP-07743',
-    patientName: 'Emily White',
-    reason: 'Evaluación de Ojo Seco',
-    status: 'SCHEDULED',
-    technologistId: 'dr_reynolds',
-    room: 'Sala 1 (OCT)',
-    priority: 'Normal'
-  }
-];
+export const INITIAL_APPOINTMENTS: Appointment[] = [];
 
-export const VISIT_HISTORY: VisitHistoryItem[] = [
-  {
-    id: 'visit_1',
-    date: '14 Ago, 2023',
-    type: 'Examen Ocular Completo',
-    notes: 'Chequeo de rutina. PIO estable. Se observa progresión leve de esclerosis nuclear en ambos ojos.',
-    provider: 'Dr. Aris Thorne',
-    icon: 'visibility'
-  },
-  {
-    id: 'visit_2',
-    date: '02 Feb, 2023',
-    type: 'Prueba de Campo Visual',
-    notes: 'Seguimiento por sospecha de glaucoma. Campos visuales confiables y completos en ambos ojos. No se observan defectos.',
-    provider: 'Tec: Sarah Jenkins',
-    icon: 'science'
-  }
-];
+export const VISIT_HISTORY: VisitHistoryItem[] = [];

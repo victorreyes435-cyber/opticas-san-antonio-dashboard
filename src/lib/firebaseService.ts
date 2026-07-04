@@ -172,7 +172,7 @@ export const firebaseService = {
         const defaultProfile: UserProfile = {
           id: uid,
           email: auth.currentUser?.email || 'dr.miller@optica.com',
-          name: auth.currentUser?.displayName || 'Dr. S. Miller',
+          name: auth.currentUser?.displayName || 'Usuario',
           role: 'Tecnólogo Médico',
           avatar: auth.currentUser?.photoURL || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
         };
@@ -205,6 +205,14 @@ export const firebaseService = {
       return snapshot.docs.map(doc => doc.data() as UserProfile);
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'users');
+    }
+  },
+
+  async deleteUser(uid: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'users', uid));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `users/${uid}`);
     }
   },
 

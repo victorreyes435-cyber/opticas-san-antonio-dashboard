@@ -17,7 +17,7 @@ const PRESET_PROFILES = {
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
   },
   technologist: {
-    name: 'Dr. S. Miller',
+    name: 'Usuario',
     role: 'Tecnólogo Médico' as const,
     avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80'
   }
@@ -259,7 +259,7 @@ export default function UserProfileModal({ isOpen, onClose, profile, onChangePro
                 >
                   <img
                     src={PRESET_PROFILES.technologist.avatar}
-                    alt="Dr. Miller Avatar"
+                    alt="Avatar"
                     className="w-12 h-12 rounded-full object-cover border-2 border-indigo-200"
                     referrerPolicy="no-referrer"
                   />

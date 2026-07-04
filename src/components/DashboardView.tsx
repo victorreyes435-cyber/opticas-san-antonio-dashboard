@@ -240,7 +240,7 @@ export default function DashboardView({
       {/* Welcome & Quick Action Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Buenos Días, Dr. Miller</h2>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Buenos Días</h2>
           <p className="text-sm text-slate-500 font-medium">
             Aquí tiene su resumen clínico para hoy, {todayDateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.
           </p>
