@@ -27,6 +27,10 @@ import PatientsView from './components/PatientsView';
 import PrescriptionsView from './components/PrescriptionsView';
 import BottomNavBar from './components/BottomNavBar';
 import UserProfileModal from './components/UserProfileModal';
+import GmailView from './components/GmailView';
+import DriveView from './components/DriveView';
+import ContactsView from './components/ContactsView';
+import SupabaseView from './components/SupabaseView';
 
 import { INITIAL_PATIENTS, INITIAL_APPOINTMENTS, INITIAL_PRESCRIPTIONS, VISIT_HISTORY } from './data';
 import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile } from './types';
@@ -616,6 +620,68 @@ export default function App() {
                   prescriptions={prescriptions}
                   setPrescriptions={handleSetPrescriptions}
                   searchQuery={searchQuery}
+                />
+              </motion.div>
+            )}
+
+            {activeTab === 'gmail' && (
+              <motion.div
+                key="gmail"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <GmailView />
+              </motion.div>
+            )}
+
+            {activeTab === 'drive' && (
+              <motion.div
+                key="drive"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <DriveView />
+              </motion.div>
+            )}
+
+            {activeTab === 'contacts' && (
+              <motion.div
+                key="contacts"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <ContactsView />
+              </motion.div>
+            )}
+
+            {activeTab === 'supabase' && (
+              <motion.div
+                key="supabase"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-full"
+              >
+                <SupabaseView 
+                  localPatients={patients}
+                  localAppointments={appointments}
+                  localPrescriptions={prescriptions}
+                  onSyncData={({ patients: newPatients, appointments: newAppts, prescriptions: newPrescriptions }) => {
+                    if (newPatients) setPatients(newPatients);
+                    if (newAppts) setAppointments(newAppts);
+                    if (newPrescriptions) setPrescriptions(newPrescriptions);
+                    triggerToast('¡Datos sincronizados desde Supabase con éxito!');
+                  }}
                 />
               </motion.div>
             )}

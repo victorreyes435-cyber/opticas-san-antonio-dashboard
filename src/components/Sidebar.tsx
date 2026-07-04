@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Users, FileText, Settings, HelpCircle, Eye } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, FileText, Settings, HelpCircle, Eye, Mail, Folder, Contact, Database } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface SidebarProps {
@@ -16,7 +16,7 @@ export default function Sidebar({ activeTab, setActiveTab, userProfile }: Sideba
   ];
 
   return (
-    <nav className="h-screen w-64 fixed left-0 top-0 bg-slate-900 border-r border-slate-800 flex-col py-6 z-20 shadow-xl lg:flex hidden">
+    <nav className="h-screen w-64 fixed left-0 top-0 bg-slate-900 border-r border-slate-800 flex flex-col py-6 z-20 shadow-xl lg:flex hidden">
       {/* Clinic Identity logo */}
       <div className="px-6 mb-8 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
@@ -29,7 +29,7 @@ export default function Sidebar({ activeTab, setActiveTab, userProfile }: Sideba
       </div>
 
       {/* Main Navigation Links */}
-      <ul className="flex-1 flex flex-col gap-1.5 px-4">
+      <ul className="flex flex-col gap-1.5 px-4">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -38,6 +38,64 @@ export default function Sidebar({ activeTab, setActiveTab, userProfile }: Sideba
               <button
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white active:scale-98'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span className="text-sm font-medium">{item.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Google Workspace Integrations */}
+      <div className="px-6 mt-6 mb-2">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Servicios Google</p>
+      </div>
+      <ul className="flex flex-col gap-1 px-4">
+        {[
+          { id: 'gmail', label: 'Gmail', icon: Mail },
+          { id: 'drive', label: 'Google Drive', icon: Folder },
+          { id: 'contacts', label: 'Contactos Google', icon: Contact },
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <li key={item.id}>
+              <button
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-left transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white active:scale-98'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span className="text-sm font-medium">{item.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Cloud Databases */}
+      <div className="px-6 mt-6 mb-2">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Base de Datos Cloud</p>
+      </div>
+      <ul className="flex flex-col gap-1 px-4">
+        {[
+          { id: 'supabase', label: 'Supabase Cloud', icon: Database },
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <li key={item.id}>
+              <button
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-left transition-all cursor-pointer ${
                   isActive
                     ? 'bg-indigo-600 text-white font-bold shadow-sm'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-white active:scale-98'

@@ -13,10 +13,13 @@ import {
   Trash2,
   Download,
   MessageSquare,
-  Phone
+  Phone,
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import { Appointment, Technologist, Patient } from '../types';
 import { TECHNOLOGISTS } from '../data';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface AgendaViewProps {
   appointments: Appointment[];
@@ -35,6 +38,36 @@ export default function AgendaView({
   onAddAppointmentClick,
   searchQuery
 }: AgendaViewProps) {
+  const { googleToken, signIn } = useAuth();
+  const [gcalEvents, setGcalEvents] = useState<any[]>([]);
+  const [gcalLoading, setGcalLoading] = useState(false);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const fetchGcalEvents = async () => {
+    if (!googleToken) return;
+    setGcalLoading(true);
+    try {
+      const now = new Date().toISOString();
+      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=5&timeMin=${now}&singleEvents=true&orderBy=startTime`, {
+        headers: { Authorization: `Bearer ${googleToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGcalEvents(data.items || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch Google Calendar events:', err);
+    } finally {
+      setGcalLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (googleToken) {
+      fetchGcalEvents();
+    }
+  }, [googleToken]);
+
   // Calendar States
   const [currentDay, setCurrentDay] = useState<number>(12);
   const [viewMode, setViewMode] = useState<'Day' | 'Week'>('Week');
@@ -191,6 +224,62 @@ export default function AgendaView({
               );
             })}
           </div>
+        </div>
+
+        {/* GOOGLE CALENDAR SIDEBAR CARD */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-indigo-600" />
+              <span>Google Calendar</span>
+            </h3>
+            {googleToken && (
+              <button
+                onClick={fetchGcalEvents}
+                disabled={gcalLoading}
+                className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-750 transition-colors"
+                title="Sincronizar"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${gcalLoading ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+          </div>
+
+          {!googleToken ? (
+            <div className="p-3 bg-slate-50 border border-slate-150 rounded-lg text-center space-y-2.5">
+              <p className="text-[10px] text-slate-400 leading-normal">
+                Conecta tu Google Calendar para sincronizar y ver eventos clínicos.
+              </p>
+              <button
+                onClick={signIn}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-3 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Conectar GCal</span>
+              </button>
+            </div>
+          ) : gcalLoading ? (
+            <div className="flex justify-center py-6">
+              <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : gcalEvents.length === 0 ? (
+            <p className="text-[10px] text-slate-400 text-center py-4">No hay eventos próximos.</p>
+          ) : (
+            <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+              {gcalEvents.map((evt) => {
+                const date = evt.start?.dateTime ? new Date(evt.start.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : 'Todo el día';
+                return (
+                  <div key={evt.id} className="p-2 bg-indigo-50/30 border border-indigo-100/50 rounded-lg flex flex-col gap-0.5">
+                    <p className="font-bold text-slate-800 text-[11px] truncate">{evt.summary || '(Sin título)'}</p>
+                    <p className="text-[9px] text-indigo-700 font-medium font-mono flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{date}</span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Filters Panel */}
@@ -658,6 +747,60 @@ export default function AgendaView({
                     <Eye className="w-4 h-4" />
                     <span>Ver Expediente</span>
                   </button>
+
+                  {googleToken && (
+                    <button
+                      onClick={async () => {
+                        setSyncingId(selectedAppointment.id);
+                        try {
+                          const timeClean = selectedAppointment.time.split(' - ')[0] || selectedAppointment.time;
+                          let hours = parseInt(timeClean.split(':')[0], 10);
+                          const minutes = parseInt(timeClean.split(':')[1], 10) || 0;
+                          if (timeClean.toLowerCase().includes('pm') && hours < 12) hours += 12;
+                          if (timeClean.toLowerCase().includes('am') && hours === 12) hours = 0;
+                          
+                          const startDateTime = new Date();
+                          startDateTime.setHours(hours, minutes, 0, 0);
+                          const endDateTime = new Date(startDateTime.getTime() + 45 * 60 * 1000); // 45 mins duration
+
+                          const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+                            method: 'POST',
+                            headers: {
+                              Authorization: `Bearer ${googleToken}`,
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                              summary: `Cita Médica: ${selectedAppointment.patientName}`,
+                              description: `Examen: ${selectedAppointment.reason}\nSala: ${selectedAppointment.room}`,
+                              start: { dateTime: startDateTime.toISOString() },
+                              end: { dateTime: endDateTime.toISOString() }
+                            })
+                          });
+
+                          if (res.ok) {
+                            alert('¡Sincronizado con éxito en tu Google Calendar!');
+                            fetchGcalEvents();
+                          } else {
+                            alert('Error al sincronizar con Google Calendar.');
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          alert('Fallo de conexión al sincronizar con Google Calendar.');
+                        } finally {
+                          setSyncingId(null);
+                        }
+                      }}
+                      disabled={syncingId === selectedAppointment.id}
+                      className="p-2.5 bg-emerald-50 hover:bg-emerald-100 disabled:bg-slate-50 text-emerald-700 hover:text-emerald-800 border border-emerald-200 rounded-lg transition-colors cursor-pointer active:scale-95 flex items-center justify-center font-bold text-xs shrink-0"
+                      title="Sincronizar con Google Calendar"
+                    >
+                      {syncingId === selectedAppointment.id ? (
+                        <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Calendar className="w-4 h-4 text-emerald-600" />
+                      )}
+                    </button>
+                  )}
 
                   <button
                     onClick={() => handleDeleteAppointment(selectedAppointment.id)}
