@@ -86,7 +86,7 @@ export default function Header({
           />
           <div className="text-left hidden md:block max-w-[120px]">
             <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">
-              {userProfile?.name || "Usuario"}
+              {userProfile?.name || "Dr. S. Miller"}
             </p>
             <p className="text-[9px] text-indigo-600 font-semibold uppercase tracking-wider truncate leading-none mt-0.5">
               {userProfile?.role || "Tecnólogo Médico"}

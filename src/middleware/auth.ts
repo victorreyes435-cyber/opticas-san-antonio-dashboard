@@ -14,7 +14,7 @@ export const requireAuth = async (
   req.user = {
     uid: 'default-user',
     email: 'dr.miller@optica.com',
-    name: 'Usuario',
+    name: 'Dr. S. Miller',
     picture: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
     iss: 'https://securetoken.google.com/mock',
     aud: 'mock',

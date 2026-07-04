@@ -51,7 +51,9 @@ service cloud.firestore {
 
     // Collection matches
     match /users/{userId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isOwner(userId);
     }
 
     match /patients/{patientId} {

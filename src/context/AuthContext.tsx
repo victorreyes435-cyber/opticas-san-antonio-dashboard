@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const mockUser = {
     uid: 'default-user',
     email: 'dr.miller@optica.com',
-    displayName: 'Usuario',
+    displayName: 'Dr. S. Miller',
     photoURL: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
     emailVerified: true,
     isAnonymous: false,

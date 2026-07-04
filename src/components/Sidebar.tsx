@@ -121,7 +121,7 @@ export default function Sidebar({ activeTab, setActiveTab, userProfile }: Sideba
             referrerPolicy="no-referrer"
           />
           <div className="overflow-hidden flex-1 min-w-0">
-            <p className="text-xs font-bold text-white truncate">{userProfile?.name || "Usuario"}</p>
+            <p className="text-xs font-bold text-white truncate">{userProfile?.name || "Dr. S. Miller"}</p>
             <p className="text-[10px] text-slate-500 truncate">{userProfile?.role || "Tecnólogo Médico"}</p>
           </div>
         </div>
