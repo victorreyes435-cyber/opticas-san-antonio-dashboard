@@ -34,6 +34,7 @@ import ContactsView from './components/ContactsView';
 import { INITIAL_PATIENTS, INITIAL_APPOINTMENTS, INITIAL_PRESCRIPTIONS, VISIT_HISTORY } from './data';
 import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile } from './types';
 import { useAuth } from './context/AuthContext.tsx';
+import { firebaseService } from './lib/firebaseService';
 
 export default function App() {
   const { user, token, loading, signIn, logOut } = useAuth();
@@ -103,6 +104,13 @@ export default function App() {
 
   // New Appointment Form state
   const [newAppPatientId, setNewAppPatientId] = useState('');
+  const [newAppDate, setNewAppDate] = useState<string>(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const [newAppTime, setNewAppTime] = useState('11:30 AM');
   const [newAppReason, setNewAppReason] = useState('Comprehensive Exam');
   const [newAppTech, setNewAppTech] = useState('dr_reynolds');
@@ -134,14 +142,14 @@ export default function App() {
 
     const fetchClinicalData = async () => {
       try {
-        const headers = { Authorization: `Bearer ${token}` };
+        const uid = user?.uid || 'default-user';
         const [profileRes, patientsRes, apptsRes, prescriptionsRes, visitRes, usersRes] = await Promise.all([
-          fetch('/api/profile', { headers }).then(res => res.json()),
-          fetch('/api/patients', { headers }).then(res => res.json()),
-          fetch('/api/appointments', { headers }).then(res => res.json()),
-          fetch('/api/prescriptions', { headers }).then(res => res.json()),
-          fetch('/api/visit-history', { headers }).then(res => res.json()),
-          fetch('/api/users', { headers }).then(res => res.json()),
+          firebaseService.fetchUserProfile(uid),
+          firebaseService.fetchPatients(),
+          firebaseService.fetchAppointments(),
+          firebaseService.fetchPrescriptions(),
+          firebaseService.fetchVisitHistory(),
+          firebaseService.fetchAllUsers(),
         ]);
 
         setUserProfile(profileRes);
@@ -149,20 +157,25 @@ export default function App() {
         setAppointments(apptsRes);
         setPrescriptions(prescriptionsRes);
         setVisitHistory(visitRes);
-        setAllUsers(usersRes && usersRes.length > 0 ? usersRes : [profileRes]);
+
+        const finalUsers = usersRes.length > 0 ? usersRes : [profileRes];
+        if (profileRes.id && !finalUsers.some(u => u.id === profileRes.id)) {
+          finalUsers.push(profileRes);
+        }
+        setAllUsers(finalUsers);
 
         if (patientsRes.length > 0) {
           setSelectedPatientId(patientsRes[0].id);
           setNewAppPatientId(patientsRes[0].id);
         }
       } catch (err) {
-        console.error('Error fetching clinical data from Cloud SQL:', err);
-        triggerToast('Error de conexión con la base de datos', true);
+        console.error('Error fetching clinical data from Firebase:', err);
+        triggerToast('Error de conexión con Firebase Firestore', true);
       }
     };
 
     fetchClinicalData();
-  }, [token]);
+  }, [token, user]);
 
   // Handle auto-selection of first patient if active becomes empty
   useEffect(() => {
@@ -180,20 +193,22 @@ export default function App() {
   const handleCreateAppointmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if there is already an appointment in the same time slot and exam room
+    // Check if there is already an appointment in the same time slot and exam room on the same date
     const hasConflict = appointments.some(
       apt => apt.time.trim().toLowerCase() === newAppTime.trim().toLowerCase() && 
-             apt.room.trim().toLowerCase() === newAppRoom.trim().toLowerCase()
+             apt.room.trim().toLowerCase() === newAppRoom.trim().toLowerCase() &&
+             (apt.date || '') === newAppDate
     );
 
     if (hasConflict) {
-      triggerToast(`Conflicto de Horario: Ya existe una cita en "${newAppRoom}" a las ${newAppTime}.`, true);
+      triggerToast(`Conflicto de Horario: Ya existe una cita en "${newAppRoom}" a las ${newAppTime} para la fecha seleccionada.`, true);
       return;
     }
 
     const patientObj = patients.find(p => p.id === newAppPatientId) || patients[0];
     
-    const newAptPayload = {
+    const newAptPayload: Appointment = {
+      id: `apt_${Date.now()}`,
       time: newAppTime,
       patientId: newAppPatientId,
       patientName: patientObj ? patientObj.name : 'Unknown Patient',
@@ -201,22 +216,15 @@ export default function App() {
       status: 'SCHEDULED',
       technologistId: newAppTech,
       room: newAppRoom,
-      priority: newAppPriority
+      priority: newAppPriority,
+      date: newAppDate
     };
 
     try {
-      const res = await fetch('/api/appointments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newAptPayload)
-      });
-      const created = await res.json();
-      setAppointments(prev => [created, ...prev]);
+      await firebaseService.saveAppointment(newAptPayload);
+      setAppointments(prev => [newAptPayload, ...prev]);
       setShowAppointmentModal(false);
-      triggerToast(`Cita programada para ${created.patientName}`);
+      triggerToast(`Cita programada para ${newAptPayload.patientName}`);
     } catch (err) {
       console.error('Failed to create appointment:', err);
       triggerToast('Error al programar la cita', true);
@@ -231,7 +239,8 @@ export default function App() {
     const currentYear = new Date().getFullYear();
     const calculatedAge = currentYear - birthYear;
 
-    const newPatPayload = {
+    const newPatPayload: Patient = {
+      id: `pat_${Date.now()}`,
       name: newPatName,
       dob: newPatDob,
       age: calculatedAge,
@@ -244,18 +253,10 @@ export default function App() {
     };
 
     try {
-      const res = await fetch('/api/patients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newPatPayload)
-      });
-      const created = await res.json();
-      setPatients(prev => [created, ...prev]);
-      setSelectedPatientId(created.id);
-      setNewAppPatientId(created.id);
+      await firebaseService.savePatient(newPatPayload);
+      setPatients(prev => [newPatPayload, ...prev]);
+      setSelectedPatientId(newPatPayload.id);
+      setNewAppPatientId(newPatPayload.id);
       setShowPatientModal(false);
       
       setNewPatName('');
@@ -264,7 +265,7 @@ export default function App() {
       setNewPatAllergies('Ninguna');
       setNewPatConditions('Sano');
 
-      triggerToast(`Nuevo perfil de paciente creado para ${created.name}`);
+      triggerToast(`Nuevo perfil de paciente creado para ${newPatPayload.name}`);
       setActiveTab('patients');
     } catch (err) {
       console.error('Failed to create patient:', err);
@@ -272,7 +273,7 @@ export default function App() {
     }
   };
 
-  // Custom setter wrappers to intercept local mutations and sync with API
+  // Custom setter wrappers to intercept local mutations and sync with Firebase
   const handleSetAppointments = async (value: React.SetStateAction<Appointment[]>) => {
     let updated: Appointment[];
     if (typeof value === 'function') {
@@ -285,12 +286,7 @@ export default function App() {
     const deletedItem = appointments.find(item => !updated.some(u => u.id === item.id));
     if (deletedItem) {
       try {
-        await fetch(`/api/appointments/${deletedItem.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        await firebaseService.deleteAppointment(deletedItem.id);
         triggerToast('Cita cancelada con éxito');
       } catch (err) {
         console.error('Failed to delete appointment from DB:', err);
@@ -304,14 +300,7 @@ export default function App() {
     });
     if (updatedItem) {
       try {
-        await fetch(`/api/appointments/${updatedItem.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(updatedItem)
-        });
+        await firebaseService.saveAppointment(updatedItem);
       } catch (err) {
         console.error('Failed to sync appointment update to DB:', err);
       }
@@ -331,14 +320,7 @@ export default function App() {
     const newlyAdded = updated.find(item => !prescriptions.some(p => p.id === item.id));
     if (newlyAdded) {
       try {
-        await fetch('/api/prescriptions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(newlyAdded)
-        });
+        await firebaseService.savePrescription(newlyAdded);
       } catch (err) {
         console.error('Failed to sync new prescription to DB:', err);
       }
@@ -358,14 +340,7 @@ export default function App() {
     const newlyAdded = updated.find(item => !visitHistory.some(v => v.id === item.id));
     if (newlyAdded) {
       try {
-        await fetch('/api/visit-history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(newlyAdded)
-        });
+        await firebaseService.saveVisitHistory(newlyAdded);
       } catch (err) {
         console.error('Failed to sync new visit history to DB:', err);
       }
@@ -376,16 +351,9 @@ export default function App() {
 
   const handleProfileChange = async (newProfile: UserProfile) => {
     setUserProfile(newProfile);
-    if (!token) return;
+    const uid = user?.uid || 'default-user';
     try {
-      await fetch('/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newProfile)
-      });
+      await firebaseService.saveUserProfile(uid, newProfile);
       triggerToast('Perfil actualizado con éxito');
     } catch (e) {
       console.error('Failed to sync profile update:', e);
@@ -394,26 +362,19 @@ export default function App() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserName.trim() || !token) return;
+    if (!newUserName.trim()) return;
 
     try {
-      const payload = {
+      const payload: UserProfile = {
+        id: `user_${Date.now()}`,
         name: newUserName,
         role: newUserRole,
         email: newUserEmail || `${newUserName.toLowerCase().replace(/\s+/g, '')}@ophthalmopro.clinic`,
         avatar: newUserAvatar
       };
 
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-      const created = await res.json();
-      setAllUsers(prev => [...prev, created]);
+      await firebaseService.saveNewUser(payload);
+      setAllUsers(prev => [...prev, payload]);
       
       // Reset form
       setNewUserName('');
@@ -422,7 +383,7 @@ export default function App() {
       setNewUserAvatar('https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80');
       setShowAddUserForm(false);
 
-      triggerToast(`Usuario ${created.name} (${created.role}) creado con éxito`);
+      triggerToast(`Usuario ${payload.name} (${payload.role}) creado con éxito`);
     } catch (err) {
       console.error('Failed to create new user:', err);
       triggerToast('Error al crear el nuevo usuario', true);
@@ -982,6 +943,16 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
+                    <label className="block font-bold text-slate-400 uppercase">Fecha</label>
+                    <input
+                      type="date"
+                      required
+                      value={newAppDate}
+                      onChange={(e) => setNewAppDate(e.target.value)}
+                      className="w-full border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                  <div className="space-y-1">
                     <label className="block font-bold text-slate-400 uppercase">Horario</label>
                     <input
                       type="text"
@@ -992,6 +963,9 @@ export default function App() {
                       className="w-full border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="block font-bold text-slate-400 uppercase">Motivo</label>
                     <select
@@ -1006,9 +980,6 @@ export default function App() {
                       <option value="Visual Field Testing">Prueba de Campo Visual</option>
                     </select>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="block font-bold text-slate-400 uppercase">Dr. / Tecnólogo Asignado</label>
                     <select
@@ -1021,6 +992,9 @@ export default function App() {
                       <option value="marcus_pierce">Marcus Pierce</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="block font-bold text-slate-400 uppercase">Sala de Examen</label>
                     <select
@@ -1033,29 +1007,28 @@ export default function App() {
                       <option value="Room 3 (Standard)">Sala 3 (Estándar)</option>
                     </select>
                   </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block font-bold text-slate-400 uppercase">Prioridad</label>
-                  <div className="flex gap-4 pt-1">
-                    <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-gray-700">
-                      <input
-                        type="radio"
-                        checked={newAppPriority === 'Normal'}
-                        onChange={() => setNewAppPriority('Normal')}
-                        className="text-indigo-600 focus:ring-indigo-600"
-                      />
-                      <span>Normal</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-gray-700">
-                      <input
-                        type="radio"
-                        checked={newAppPriority === 'High'}
-                        onChange={() => setNewAppPriority('High')}
-                        className="text-indigo-600 focus:ring-indigo-600"
-                      />
-                      <span className="text-red-600 font-bold">Prioridad Alta</span>
-                    </label>
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-400 uppercase">Prioridad</label>
+                    <div className="flex gap-4 pt-2.5">
+                      <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-gray-700">
+                        <input
+                          type="radio"
+                          checked={newAppPriority === 'Normal'}
+                          onChange={() => setNewAppPriority('Normal')}
+                          className="text-indigo-600 focus:ring-indigo-600"
+                        />
+                        <span>Normal</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-gray-700">
+                        <input
+                          type="radio"
+                          checked={newAppPriority === 'High'}
+                          onChange={() => setNewAppPriority('High')}
+                          className="text-indigo-600 focus:ring-indigo-600"
+                        />
+                        <span className="text-red-600 font-bold">Alta</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 

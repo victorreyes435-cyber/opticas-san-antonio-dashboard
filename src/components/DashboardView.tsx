@@ -53,10 +53,24 @@ export default function DashboardView({
   onAddAppointmentClick,
   searchQuery 
 }: DashboardViewProps) {
-  const [selectedDay, setSelectedDay] = useState<number>(24);
+  const todayDateObj = new Date();
+  const currentYear = todayDateObj.getFullYear();
+  const currentMonthNum = todayDateObj.getMonth();
+  const currentDay = todayDateObj.getDate();
+  const currentMonthName = todayDateObj.toLocaleDateString('es-ES', { month: 'long' });
+  const capitalizedMonthName = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
+
+  const [selectedDay, setSelectedDay] = useState<number>(currentDay);
   const [labReviewed, setLabReviewed] = useState(false);
   const [rxSigned, setRxSigned] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
+
+  // Calendar calculations
+  const firstDayInstance = new Date(currentYear, currentMonthNum, 1);
+  const startingDayOfWeek = firstDayInstance.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const daysInMonth = new Date(currentYear, currentMonthNum + 1, 0).getDate();
+  const prevDaysInMonth = new Date(currentYear, currentMonthNum, 0).getDate();
+  const prevMonthDaysToShow = startingDayOfWeek;
 
   // WhatsApp reminder state
   const [waSelectedApp, setWaSelectedApp] = useState<Appointment | null>(null);
@@ -75,21 +89,25 @@ export default function DashboardView({
       ? 'Dra. Sarah Chen (OD)' 
       : 'Especialista';
       
-    const apptDate = `${selectedDay} de Octubre de 2024`;
+    const apptDate = `${selectedDay} de ${capitalizedMonthName} de ${currentYear}`;
     const msg = `Hola *${app.patientName}*, le recordamos su cita programada para el día *${apptDate}* a las *${app.time}* con el especialista *${techName}* en *Ópticas San Antonio*. Por favor, confirme su asistencia respondiendo a este mensaje. ¡Le esperamos!`;
     setWaMessage(msg);
   };
 
-  // Data for occupancy trends chart (daily simulated clinic occupancy in October)
-  const occupancyData = [
-    { name: '18 Oct', citas: 10, ocupacion: 50 },
-    { name: '19 Oct', citas: 12, ocupacion: 60 },
-    { name: '20 Oct', citas: 15, ocupacion: 75 },
-    { name: '21 Oct', citas: 18, ocupacion: 90 },
-    { name: '22 Oct', citas: 14, ocupacion: 70 },
-    { name: '23 Oct', citas: 21, ocupacion: 95 },
-    { name: '24 Oct', citas: appointments.length, ocupacion: Math.min(100, appointments.length * 15) },
-  ];
+  // Data for occupancy trends chart (daily simulated clinic occupancy dynamically matching the last 7 days)
+  const last7Days = [...Array(7)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d;
+  });
+
+  const occupancyData = last7Days.map((d, index) => {
+    const label = `${d.getDate()} ${d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}`;
+    const isToday = index === 6;
+    const count = isToday ? appointments.length : (10 + (d.getDate() % 12));
+    const pct = Math.min(100, count * 15);
+    return { name: label, citas: count, ocupacion: pct };
+  });
 
   // Calculate actual appointments count by specialist/technologist
   const techCounts = appointments.reduce((acc, app) => {
@@ -148,6 +166,17 @@ export default function DashboardView({
       app.patientId.toLowerCase().includes(query) ||
       app.reason.toLowerCase().includes(query)
     );
+  });
+
+  const selectedDateStr = `${currentYear}-${String(currentMonthNum + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+  const todayDateStr = `${currentYear}-${String(currentMonthNum + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+
+  const appointmentsForSelectedDay = filteredAppointments.filter(app => {
+    if (app.date) {
+      return app.date === selectedDateStr;
+    } else {
+      return selectedDateStr === todayDateStr;
+    }
   });
 
   const triggerToast = (msg: string) => {
@@ -212,7 +241,9 @@ export default function DashboardView({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Buenos Días, Dr. Miller</h2>
-          <p className="text-sm text-slate-500 font-medium">Aquí tiene su resumen clínico para hoy, 24 de Octubre.</p>
+          <p className="text-sm text-slate-500 font-medium">
+            Aquí tiene su resumen clínico para hoy, {todayDateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -281,7 +312,7 @@ export default function DashboardView({
         {/* Mini Calendar (Spans 4 cols) */}
         <div className="xl:col-span-4 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-bold text-slate-800">Octubre 2024</h3>
+            <h3 className="text-sm font-bold text-slate-800">{capitalizedMonthName} {currentYear}</h3>
             <div className="flex space-x-1 text-slate-400">
               <button className="p-1 rounded hover:bg-slate-50 transition-colors cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
               <button className="p-1 rounded hover:bg-slate-50 transition-colors cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
@@ -291,25 +322,44 @@ export default function DashboardView({
             <div>D</div><div>L</div><div>M</div><div>M</div><div>J</div><div>V</div><div>S</div>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {/* Days placeholder for calendar view of October 2024 */}
-            <div className="text-slate-300 py-1">29</div>
-            <div className="text-slate-300 py-1">30</div>
-            {[...Array(31)].map((_, i) => {
+            {/* Previous month's days placeholders */}
+            {[...Array(prevMonthDaysToShow)].map((_, i) => {
+              const day = prevDaysInMonth - prevMonthDaysToShow + i + 1;
+              return (
+                <div key={`prev-${day}`} className="text-slate-300 py-1 font-medium">
+                  {day}
+                </div>
+              );
+            })}
+            
+            {/* Current month's days */}
+            {[...Array(daysInMonth)].map((_, i) => {
               const day = i + 1;
-              const isToday = day === selectedDay;
-              const hasApt = day === 7 || day === 12 || day === 24 || day === 26;
+              const isToday = day === currentDay;
+              const isSelected = day === selectedDay;
+              
+              const dayDateStr = `${currentYear}-${String(currentMonthNum + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const hasApt = appointments.some(app => {
+                if (app.date) {
+                  return app.date === dayDateStr;
+                } else {
+                  return day === currentDay;
+                }
+              });
               return (
                 <button
                   key={day}
                   onClick={() => setSelectedDay(day)}
                   className={`py-1 rounded-lg relative font-medium cursor-pointer transition-all ${
-                    isToday 
+                    isSelected 
                       ? 'bg-indigo-600 text-white font-bold shadow-sm' 
+                      : isToday
+                      ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold'
                       : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   {day}
-                  {hasApt && !isToday && (
+                  {hasApt && !isSelected && (
                     <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>
                   )}
                 </button>
@@ -437,7 +487,7 @@ export default function DashboardView({
           <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
-              Agenda de Hoy ({selectedDay === 24 ? filteredAppointments.length : 0})
+              {selectedDay === currentDay ? 'Agenda de Hoy' : `Agenda para el ${selectedDay} de ${capitalizedMonthName}`} ({appointmentsForSelectedDay.length})
             </h3>
             <button 
               onClick={onAddAppointmentClick}
@@ -449,19 +499,17 @@ export default function DashboardView({
           </div>
 
           <div className="overflow-x-auto">
-            {selectedDay !== 24 ? (
+            {appointmentsForSelectedDay.length === 0 ? (
               <div className="p-8 text-center text-slate-400">
-                <p className="text-sm font-medium">No hay citas programadas para el {selectedDay} de Octubre de 2024.</p>
-                <button 
-                  onClick={() => setSelectedDay(24)}
-                  className="mt-2 text-xs text-indigo-600 font-bold hover:underline"
-                >
-                  Volver a hoy (24)
-                </button>
-              </div>
-            ) : filteredAppointments.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">
-                <p className="text-sm font-medium">Ninguna cita coincide con su filtro de búsqueda.</p>
+                <p className="text-sm font-medium">No hay citas programadas para el {selectedDay} de {capitalizedMonthName} de {currentYear}.</p>
+                {selectedDay !== currentDay && (
+                  <button 
+                    onClick={() => setSelectedDay(currentDay)}
+                    className="mt-2 text-xs text-indigo-600 font-bold hover:underline cursor-pointer"
+                  >
+                    Volver a hoy ({currentDay})
+                  </button>
+                )}
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
@@ -475,7 +523,7 @@ export default function DashboardView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredAppointments.map((app) => {
+                  {appointmentsForSelectedDay.map((app) => {
                     // Extract initials
                     const initials = app.patientName.split(' ').map(n => n[0]).join('');
                     

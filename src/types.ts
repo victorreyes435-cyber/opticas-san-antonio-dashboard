@@ -66,6 +66,7 @@ export interface Appointment {
   technologistId: string;
   room: string;
   priority?: 'High' | 'Normal';
+  date?: string;
 }
 
 export interface Technologist {
@@ -86,8 +87,10 @@ export interface VisitHistoryItem {
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   role: 'Recepcionista' | 'Tecnólogo Médico';
   avatar: string;
+  email?: string;
 }
 

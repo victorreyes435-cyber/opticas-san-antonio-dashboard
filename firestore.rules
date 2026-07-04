@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global Safety Net (default deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Schema Validation Helpers
+    function isValidPatient(data) {
+      return data.keys().hasAll(['id', 'name'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128;
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll(['id', 'patientId', 'time'])
+        && data.id is string && data.id.size() <= 128
+        && data.patientId is string && data.patientId.size() <= 128
+        && data.time is string && data.time.size() <= 32;
+    }
+
+    function isValidPrescription(data) {
+      return data.keys().hasAll(['id', 'patientId', 'patientName'])
+        && data.id is string && data.id.size() <= 128
+        && data.patientId is string && data.patientId.size() <= 128
+        && data.patientName is string && data.patientName.size() <= 128;
+    }
+
+    function isValidVisit(data) {
+      return data.keys().hasAll(['id', 'date'])
+        && data.id is string && data.id.size() <= 128
+        && data.date is string && data.date.size() <= 32;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['name', 'role'])
+        && data.name is string && data.name.size() <= 128
+        && data.role in ['Recepcionista', 'Tecnólogo Médico'];
+    }
+
+    // Collection matches
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    match /patients/{patientId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidPatient(request.resource.data);
+      allow delete: if isSignedIn();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidAppointment(request.resource.data);
+      allow delete: if isSignedIn();
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidPrescription(request.resource.data);
+      allow delete: if isSignedIn();
+    }
+
+    match /visitHistory/{visitId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidVisit(request.resource.data);
+      allow delete: if isSignedIn();
+    }
+  }
+}

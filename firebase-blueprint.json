@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "Información de registro médico de un paciente",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "dob": { "type": "string" },
+        "age": { "type": "number" },
+        "sex": { "type": "string", "enum": ["Male", "Female", "Other"] },
+        "bloodType": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatar": { "type": "string" },
+        "allergies": { "type": "array", "items": { "type": "string" } },
+        "chronicConditions": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name"]
+    },
+    "Prescription": {
+      "title": "Prescription",
+      "description": "Recetas ópticas o refractivas emitidas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "patientDob": { "type": "string" },
+        "date": { "type": "string" },
+        "doctorName": { "type": "string" },
+        "od": { "type": "object" },
+        "os": { "type": "object" },
+        "lensType": { "type": "string", "enum": ["Single Vision", "Bifocal", "Progressive"] },
+        "coatings": { "type": "object" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "patientId", "patientName"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Citas de pacientes registradas en la agenda",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "time": { "type": "string" },
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["ARRIVED", "CHECKING IN", "SCHEDULED", "COMPLETED"] },
+        "technologistId": { "type": "string" },
+        "room": { "type": "string" },
+        "priority": { "type": "string", "enum": ["High", "Normal"] },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "patientId", "time"]
+    },
+    "VisitHistoryItem": {
+      "title": "VisitHistoryItem",
+      "description": "Historial clínico de visitas del paciente",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "type": { "type": "string" },
+        "notes": { "type": "string" },
+        "provider": { "type": "string" },
+        "icon": { "type": "string", "enum": ["visibility", "science", "healing"] }
+      },
+      "required": ["id", "date"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil de usuario del sistema clínico (Recepcionista o Tecnólogo)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["Recepcionista", "Tecnólogo Médico"] },
+        "avatar": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["name", "role"]
+    }
+  },
+  "firestore": {
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Colección de registros de pacientes"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Colección de citas programadas"
+    },
+    "/prescriptions/{prescriptionId}": {
+      "schema": "Prescription",
+      "description": "Colección de recetas oftalmológicas"
+    },
+    "/visitHistory/{visitId}": {
+      "schema": "VisitHistoryItem",
+      "description": "Colección de historial clínico y de visitas"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Colección de perfiles de usuario del sistema"
+    }
+  }
+}

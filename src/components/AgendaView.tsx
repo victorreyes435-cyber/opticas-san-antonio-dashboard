@@ -68,9 +68,23 @@ export default function AgendaView({
     }
   }, [googleToken]);
 
+  const todayDateObj = new Date();
+  const currentYear = todayDateObj.getFullYear();
+  const currentMonthNum = todayDateObj.getMonth();
+  const todayDayNum = todayDateObj.getDate();
+  const currentMonthName = todayDateObj.toLocaleDateString('es-ES', { month: 'long' });
+  const capitalizedMonthName = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
+
   // Calendar States
-  const [currentDay, setCurrentDay] = useState<number>(12);
+  const [currentDay, setCurrentDay] = useState<number>(todayDayNum);
   const [viewMode, setViewMode] = useState<'Day' | 'Week'>('Week');
+
+  // Calendar calculations
+  const firstDayInstance = new Date(currentYear, currentMonthNum, 1);
+  const startingDayOfWeek = firstDayInstance.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const daysInMonth = new Date(currentYear, currentMonthNum + 1, 0).getDate();
+  const prevDaysInMonth = new Date(currentYear, currentMonthNum, 0).getDate();
+  const prevMonthDaysToShow = startingDayOfWeek;
 
   // Appointment detail popup
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -87,7 +101,7 @@ export default function AgendaView({
       setWaPhone(phone);
       
       const tech = TECHNOLOGISTS.find(t => t.id === selectedAppointment.technologistId) || { name: 'Especialista' };
-      const apptDate = `${currentDay} de Octubre de 2023`;
+      const apptDate = `${currentDay} de ${capitalizedMonthName} de ${currentYear}`;
       const msg = `Hola *${selectedAppointment.patientName}*, le recordamos su cita programada para el día *${apptDate}* a las *${selectedAppointment.time}* con el especialista *${tech.name}* en *Ópticas San Antonio*. Por favor, confirme su asistencia respondiendo a este mensaje. ¡Le esperamos!`;
       setWaMessage(msg);
       setShowWaPanel(false);
@@ -184,14 +198,59 @@ export default function AgendaView({
     return true;
   });
 
+  const selectedDateStr = `${currentYear}-${String(currentMonthNum + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+  const todayDateStr = `${currentYear}-${String(currentMonthNum + 1).padStart(2, '0')}-${String(todayDayNum).padStart(2, '0')}`;
+
+  const appointmentsForSelectedDay = filteredAppointments.filter(app => {
+    if (app.date) {
+      return app.date === selectedDateStr;
+    } else {
+      return selectedDateStr === todayDateStr;
+    }
+  });
+
+  const getPositionForTime = (timeStr: string) => {
+    const startPart = timeStr.split('-')[0].trim().toUpperCase();
+    const match = startPart.match(/(\d+):(\d+)\s*(AM|PM)?/);
+    if (!match) return { top: 96, height: 72 };
+
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3] || (hours >= 8 && hours < 12 ? 'AM' : 'PM');
+
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    const startHour = 8;
+    const elapsedMinutes = (hours - startHour) * 60 + minutes;
+    const top = Math.max(0, elapsedMinutes * 1.6);
+
+    let durationMinutes = 45;
+    if (timeStr.includes('-')) {
+      const endPart = timeStr.split('-')[1].trim().toUpperCase();
+      const endMatch = endPart.match(/(\d+):(\d+)\s*(AM|PM)?/);
+      if (endMatch) {
+        let endHours = parseInt(endMatch[1], 10);
+        const endMinutes = parseInt(endMatch[2], 10);
+        const endPeriod = endMatch[3] || (endHours >= 8 && endHours < 12 ? 'AM' : 'PM');
+        if (endPeriod === 'PM' && endHours < 12) endHours += 12;
+        if (endPeriod === 'AM' && endHours === 12) endHours = 0;
+        durationMinutes = (endHours - hours) * 60 + (endMinutes - minutes);
+      }
+    }
+
+    const height = Math.max(48, durationMinutes * 1.6);
+    return { top, height };
+  };
+
   return (
     <div className="flex flex-col xl:flex-row gap-6 h-[calc(100vh-8.5rem)] overflow-hidden">
       {/* LEFT SIDEBAR: Mini Calendar & Filters */}
       <aside className="w-full xl:w-72 shrink-0 flex flex-col gap-6 overflow-y-auto pr-1">
-        {/* October 2023 Mini-Calendar */}
+        {/* Dynamic Mini-Calendar */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-800">Octubre 2023</h3>
+            <h3 className="text-sm font-bold text-slate-800">{capitalizedMonthName} {currentYear}</h3>
             <div className="flex gap-1 text-slate-400">
               <button className="p-1 rounded hover:bg-slate-50 transition-colors cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
               <button className="p-1 rounded hover:bg-slate-50 transition-colors cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
@@ -202,12 +261,20 @@ export default function AgendaView({
             <div>Do</div><div>Lu</div><div>Ma</div><div>Mi</div><div>Ju</div><div>Vi</div><div>Sa</div>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {/* Days placeholders for October 2023 */}
-            <div className="text-slate-300 py-1">1</div>
-            <div className="text-slate-300 py-1">2</div>
-            <div className="text-slate-300 py-1">3</div>
-            {[...Array(14)].map((_, i) => {
-              const day = i + 4;
+            {/* Previous month's days placeholders */}
+            {[...Array(prevMonthDaysToShow)].map((_, i) => {
+              const day = prevDaysInMonth - prevMonthDaysToShow + i + 1;
+              return (
+                <div key={`prev-${day}`} className="text-slate-300 py-1 font-medium">
+                  {day}
+                </div>
+              );
+            })}
+            
+            {/* Current month's days */}
+            {[...Array(daysInMonth)].map((_, i) => {
+              const day = i + 1;
+              const isToday = day === todayDayNum;
               const isSelected = day === currentDay;
               return (
                 <button
@@ -216,6 +283,8 @@ export default function AgendaView({
                   className={`py-1 rounded-lg font-medium cursor-pointer transition-all ${
                     isSelected 
                       ? 'bg-indigo-600 text-white font-bold shadow-sm' 
+                      : isToday
+                      ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold'
                       : 'hover:bg-slate-50 text-slate-700 font-medium'
                   }`}
                 >
@@ -384,7 +453,12 @@ export default function AgendaView({
         <div className="h-16 border-b border-slate-100 flex items-center justify-between px-6 bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-4">
             <h2 className="text-sm md:text-base font-bold text-slate-800">
-              Jueves, {currentDay} de Octubre de 2023
+              {(() => {
+                const selectedDayDate = new Date(currentYear, currentMonthNum, currentDay);
+                const weekdayName = selectedDayDate.toLocaleDateString('es-ES', { weekday: 'long' });
+                const capitalizedWeekday = weekdayName.charAt(0).toUpperCase() + weekdayName.slice(1);
+                return `${capitalizedWeekday}, ${currentDay} de ${capitalizedMonthName} de ${currentYear}`;
+              })()}
             </h2>
             <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200">
               <button 
@@ -484,68 +558,53 @@ export default function AgendaView({
                 <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative bg-slate-50/10" onClick={onAddAppointmentClick}></div>
 
                 {/* Absolutes for Dr Reynolds */}
-                {selectedTechs.includes('dr_reynolds') && currentDay === 12 && (
+                {selectedTechs.includes('dr_reynolds') && (
                   <>
-                    {/* Confirmed Appt J. Doe Glaucoma Follow-up (8:30 - 9:30) */}
-                    <motion.div 
-                      whileHover={{ scale: 1.01 }}
-                      onClick={() => {
-                        const apt = appointments.find(a => a.id === 'apt_4') || appointments[0];
-                        setSelectedAppointment({
-                          ...apt,
-                          patientName: 'Jane Doe',
-                          patientId: '123-456-78',
-                          time: '08:30 AM - 09:30 AM',
-                          reason: 'Glaucoma Follow-up',
-                          status: 'ARRIVED',
-                          technologistId: 'dr_reynolds',
-                          room: 'Room 1 (OCT)'
-                        });
-                      }}
-                      className="absolute left-1 right-2 top-[48px] h-[96px] bg-indigo-50/80 border border-indigo-200 border-l-4 border-indigo-600 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group"
-                    >
-                      <div>
-                        <div className="text-xs font-bold text-indigo-950 truncate group-hover:underline">
-                          Jane Doe - Glaucoma Follow-up
-                        </div>
-                        <div className="text-[10px] text-indigo-700 font-semibold flex items-center gap-1 mt-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>8:30 AM - 9:30 AM</span>
-                        </div>
-                      </div>
-                      <span className="text-[9px] font-bold text-indigo-700 bg-white/85 px-1.5 py-0.5 rounded border border-indigo-200/50 self-start">
-                        Sala 1
-                      </span>
-                    </motion.div>
-
-                    {/* Pending Appt M. Smith (10:00 - 10:45) */}
-                    <motion.div 
-                      whileHover={{ scale: 1.01 }}
-                      onClick={() => {
-                        const apt = appointments.find(a => a.id === 'apt_1') || appointments[0];
-                        setSelectedAppointment({
-                          ...apt,
-                          patientName: 'Michael Smith',
-                          patientId: 'ms_01',
-                          time: '10:00 AM - 10:45 AM',
-                          reason: 'Comprehensive Exam',
-                          status: 'SCHEDULED',
-                          technologistId: 'dr_reynolds',
-                          room: 'Room 1 (OCT)'
-                        });
-                      }}
-                      className="absolute left-1 right-2 top-[192px] h-[72px] bg-amber-50/80 border border-amber-200 border-l-4 border-amber-600 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group"
-                    >
-                      <div>
-                        <div className="text-xs font-bold text-amber-950 truncate group-hover:underline">
-                          M. Smith - Comprehensive Exam
-                        </div>
-                        <div className="text-[10px] text-amber-700 font-semibold flex items-center gap-1 mt-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>10:00 AM - 10:45 AM</span>
-                        </div>
-                      </div>
-                    </motion.div>
+                    {appointmentsForSelectedDay
+                      .filter(app => app.technologistId === 'dr_reynolds')
+                      .map(app => {
+                        const { top, height } = getPositionForTime(app.time);
+                        const isCompleted = app.status === 'COMPLETED';
+                        const isArrived = app.status === 'ARRIVED';
+                        const isHighPriority = app.priority === 'High';
+                        
+                        return (
+                          <motion.div 
+                            key={app.id}
+                            whileHover={{ scale: 1.01 }}
+                            onClick={() => setSelectedAppointment(app)}
+                            style={{ top: `${top}px`, height: `${height}px` }}
+                            className={`absolute left-1 right-2 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group border-l-4 transition-all ${
+                              isCompleted
+                                ? 'bg-slate-50 border-slate-400 border opacity-80'
+                                : isArrived
+                                ? 'bg-indigo-50/80 border-indigo-200 border-l-indigo-600 text-indigo-950'
+                                : 'bg-amber-50/80 border-amber-200 border-l-amber-600 text-amber-950'
+                            }`}
+                          >
+                            <div>
+                              <div className={`text-xs font-bold truncate group-hover:underline ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
+                                {app.patientName} - {app.reason}
+                              </div>
+                              <div className={`text-[10px] font-semibold flex items-center gap-1 mt-1 ${isCompleted ? 'text-slate-500' : isArrived ? 'text-indigo-700' : 'text-amber-700'}`}>
+                                {isCompleted ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Clock className="w-3.5 h-3.5" />}
+                                <span>{app.time}</span>
+                              </div>
+                            </div>
+                            <div className="mt-auto flex flex-wrap gap-1">
+                              {isHighPriority && (
+                                <span className="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded">
+                                  Prioridad Alta
+                                </span>
+                              )}
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isCompleted ? 'bg-slate-100 text-slate-500' : isArrived ? 'bg-white/85 text-indigo-700 border-indigo-200/50' : 'bg-white/85 text-amber-700 border-amber-200/50'}`}>
+                                {app.room === 'Room 1 (OCT)' ? 'Sala 1' : app.room === 'Room 2 (Visual Field)' ? 'Sala 2' : 'Sala 3'}
+                              </span>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    }
                   </>
                 )}
               </div>
@@ -559,74 +618,53 @@ export default function AgendaView({
                 <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative bg-slate-50/10" onClick={onAddAppointmentClick}></div>
 
                 {/* Absolutes for Sarah Chen */}
-                {selectedTechs.includes('sarah_chen') && currentDay === 12 && (
+                {selectedTechs.includes('sarah_chen') && (
                   <>
-                    {/* Completed L. Johnson (8:00 - 9:00) */}
-                    <motion.div 
-                      whileHover={{ scale: 1.01 }}
-                      onClick={() => {
-                        const apt = appointments.find(a => a.id === 'apt_2') || appointments[0];
-                        setSelectedAppointment({
-                          ...apt,
-                          patientName: 'L. Johnson',
-                          patientId: 'lj_02',
-                          time: '8:00 AM - 9:00 AM',
-                          reason: 'Visual Field Test',
-                          status: 'COMPLETED',
-                          technologistId: 'sarah_chen',
-                          room: 'Room 2 (Visual Field)'
-                        });
-                      }}
-                      className="absolute left-1 right-2 top-0 h-[96px] bg-slate-50 border border-slate-200 border-l-4 border-slate-400 rounded-r-lg p-2.5 flex flex-col justify-between opacity-80 cursor-pointer group"
-                    >
-                      <div>
-                        <div className="text-xs font-bold text-slate-700 truncate line-through decoration-slate-400 group-hover:underline">
-                          L. Johnson - Visual Field Test
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 mt-1.5">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span>Completada</span>
-                        </div>
-                      </div>
-                    </motion.div>
-
-                    {/* Confirmed Appt R. Williams Post-Op Check (9:30 - 11:00) */}
-                    <motion.div 
-                      whileHover={{ scale: 1.01 }}
-                      onClick={() => {
-                        const apt = appointments.find(a => a.id === 'apt_3') || appointments[0];
-                        setSelectedAppointment({
-                          ...apt,
-                          patientName: 'Robert Williams',
-                          patientId: 'rw_03',
-                          time: '9:30 AM - 11:00 AM',
-                          reason: 'Post-Op Check',
-                          status: 'ARRIVED',
-                          technologistId: 'sarah_chen',
-                          room: 'Room 2 (Visual Field)',
-                          priority: 'High'
-                        });
-                      }}
-                      className="absolute left-1 right-2 top-[144px] h-[144px] bg-indigo-50/80 border border-indigo-200 border-l-4 border-indigo-600 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group"
-                    >
-                      <div>
-                        <div className="text-xs font-bold text-indigo-950 truncate group-hover:underline">
-                          R. Williams - Post-Op Check
-                        </div>
-                        <div className="text-[10px] text-indigo-700 font-semibold flex items-center gap-1 mt-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>9:30 AM - 11:00 AM</span>
-                        </div>
-                      </div>
-                      <div className="mt-auto flex flex-wrap gap-1">
-                        <span className="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded">
-                          Prioridad Alta
-                        </span>
-                        <span className="text-[9px] font-bold text-indigo-700 bg-white/85 px-1.5 py-0.5 rounded border border-indigo-200/50">
-                          Sala 2
-                        </span>
-                      </div>
-                    </motion.div>
+                    {appointmentsForSelectedDay
+                      .filter(app => app.technologistId === 'sarah_chen')
+                      .map(app => {
+                        const { top, height } = getPositionForTime(app.time);
+                        const isCompleted = app.status === 'COMPLETED';
+                        const isArrived = app.status === 'ARRIVED';
+                        const isHighPriority = app.priority === 'High';
+                        
+                        return (
+                          <motion.div 
+                            key={app.id}
+                            whileHover={{ scale: 1.01 }}
+                            onClick={() => setSelectedAppointment(app)}
+                            style={{ top: `${top}px`, height: `${height}px` }}
+                            className={`absolute left-1 right-2 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group border-l-4 transition-all ${
+                              isCompleted
+                                ? 'bg-slate-50 border-slate-400 border opacity-80'
+                                : isArrived
+                                ? 'bg-indigo-50/80 border-indigo-200 border-l-indigo-600 text-indigo-950'
+                                : 'bg-amber-50/80 border-amber-200 border-l-amber-600 text-amber-950'
+                            }`}
+                          >
+                            <div>
+                              <div className={`text-xs font-bold truncate group-hover:underline ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
+                                {app.patientName} - {app.reason}
+                              </div>
+                              <div className={`text-[10px] font-semibold flex items-center gap-1 mt-1 ${isCompleted ? 'text-slate-500' : isArrived ? 'text-indigo-700' : 'text-amber-700'}`}>
+                                {isCompleted ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Clock className="w-3.5 h-3.5" />}
+                                <span>{app.time}</span>
+                              </div>
+                            </div>
+                            <div className="mt-auto flex flex-wrap gap-1">
+                              {isHighPriority && (
+                                <span className="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded">
+                                  Prioridad Alta
+                                </span>
+                              )}
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isCompleted ? 'bg-slate-100 text-slate-500' : isArrived ? 'bg-white/85 text-indigo-700 border-indigo-200/50' : 'bg-white/85 text-amber-700 border-amber-200/50'}`}>
+                                {app.room === 'Room 1 (OCT)' ? 'Sala 1' : app.room === 'Room 2 (Visual Field)' ? 'Sala 2' : 'Sala 3'}
+                              </span>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    }
                   </>
                 )}
               </div>
