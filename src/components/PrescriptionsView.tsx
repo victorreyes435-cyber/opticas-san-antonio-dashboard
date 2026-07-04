@@ -20,6 +20,8 @@ interface PrescriptionsViewProps {
   prescriptions: Prescription[];
   setPrescriptions: Dispatch<SetStateAction<Prescription[]>>;
   searchQuery: string;
+  clinicAddress?: string;
+  clinicPhone?: string;
 }
 
 export default function PrescriptionsView({ 
@@ -28,7 +30,9 @@ export default function PrescriptionsView({
   onPatientChange, 
   prescriptions,
   setPrescriptions,
-  searchQuery
+  searchQuery,
+  clinicAddress = 'Av. Principal 123, Ciudad Central',
+  clinicPhone = '+1 (555) 123-4567'
 }: PrescriptionsViewProps) {
   // Find current patient data with robust fallback
   const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0] || {
@@ -566,8 +570,8 @@ export default function PrescriptionsView({
               {/* Ópticas San Antonio Print Head */}
               <div className="text-center border-b border-slate-100 pb-3.5 mb-3.5">
                 <h4 className="text-base font-bold text-indigo-600 tracking-tight">Ópticas San Antonio</h4>
-                <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5">
-                  123 Plaza Clínica, Suite 400<br />Metrópolis, NY 10001 | Tel: (555) 012-3456
+                <p className="text-[10px] text-slate-400 font-semibold leading-relaxed mt-0.5 whitespace-pre-wrap">
+                  {clinicAddress} | Tel: {clinicPhone}
                 </p>
               </div>
 

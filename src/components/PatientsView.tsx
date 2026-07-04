@@ -27,6 +27,8 @@ interface PatientsViewProps {
   onAddPatientClick: () => void;
   searchQuery: string;
   prescriptions: Prescription[];
+  clinicAddress?: string;
+  clinicPhone?: string;
 }
 
 export default function PatientsView({ 
@@ -38,7 +40,9 @@ export default function PatientsView({
   onSwitchToPrescriptions,
   onAddPatientClick,
   searchQuery,
-  prescriptions
+  prescriptions,
+  clinicAddress = 'Av. Principal 123, Ciudad Central',
+  clinicPhone = '+1 (555) 123-4567'
 }: PatientsViewProps) {
   // Find current patient data with robust fallback to prevent Uncaught TypeError on empty arrays
   const currentPatient = patients.find(p => p.id === selectedPatientId) || patients[0] || {
@@ -503,9 +507,10 @@ export default function PatientsView({
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">OPHTHALMOPRO CLINICAL SUITE</h1>
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Resumen Clínico y Ficha del Paciente</p>
           </div>
-          <div className="text-right text-[10px] text-slate-500 font-mono">
+          <div className="text-right text-[10px] text-slate-500 font-mono whitespace-pre-wrap">
+            <p className="font-bold text-slate-700">Ópticas San Antonio</p>
+            <p>{clinicAddress} | Tel: {clinicPhone}</p>
             <p>Fecha de Emisión: {new Date().toLocaleDateString('es-ES')}</p>
-            <p>Sistema Clínico de Oftalmología</p>
           </div>
         </div>
 

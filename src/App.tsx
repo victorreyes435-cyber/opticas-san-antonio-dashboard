@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { PatternFormat } from 'react-number-format';
 import { 
   Users, 
   Calendar, 
@@ -16,7 +17,8 @@ import {
   Eye,
   Plus,
   Sun,
-  Moon
+  Moon,
+  AlertTriangle
 } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
@@ -65,6 +67,14 @@ export default function App() {
     return localStorage.getItem('theme') === 'dark';
   });
 
+  const [clinicAddress, setClinicAddress] = useState<string>(() => {
+    return localStorage.getItem('clinicAddress') || 'Av. Principal 123, Ciudad Central';
+  });
+
+  const [clinicPhone, setClinicPhone] = useState<string>(() => {
+    return localStorage.getItem('clinicPhone') || '+1 (555) 123-4567';
+  });
+
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -74,6 +84,14 @@ export default function App() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('clinicAddress', clinicAddress);
+  }, [clinicAddress]);
+
+  useEffect(() => {
+    localStorage.setItem('clinicPhone', clinicPhone);
+  }, [clinicPhone]);
 
   // Unified global state stores with persistent memory falling back to API
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -102,8 +120,15 @@ export default function App() {
   const [showSuccessToast, setShowSuccessToast] = useState<string | null>(null);
   const [isToastError, setIsToastError] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (showAppointmentModal) {
+      setAppointmentError(null);
+    }
+  }, [showAppointmentModal]);
+
   // New Appointment Form state
   const [newAppPatientId, setNewAppPatientId] = useState('');
+  const [appointmentError, setAppointmentError] = useState<string | null>(null);
   const [newAppDate, setNewAppDate] = useState<string>(() => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -122,7 +147,7 @@ export default function App() {
   const [newPatDob, setNewPatDob] = useState('1980-01-01');
   const [newPatSex, setNewPatSex] = useState<'Male' | 'Female' | 'Other'>('Female');
   const [newPatBlood, setNewPatBlood] = useState('O+');
-  const [newPatPhone, setNewPatPhone] = useState('(555) 012-3344');
+  const [newPatPhone, setNewPatPhone] = useState('+1 (555) 012-3344');
   const [newPatAllergies, setNewPatAllergies] = useState('Ninguna');
   const [newPatConditions, setNewPatConditions] = useState('Sano');
 
@@ -192,6 +217,16 @@ export default function App() {
 
   const handleCreateAppointmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAppointmentError(null);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const apptDate = new Date(newAppDate + 'T00:00:00');
+    
+    if (apptDate < today) {
+      setAppointmentError("No se pueden programar citas en fechas pasadas.");
+      return;
+    }
     
     // Check if there is already an appointment in the same time slot and exam room on the same date
     const hasConflict = appointments.some(
@@ -261,7 +296,7 @@ export default function App() {
       
       setNewPatName('');
       setNewPatDob('1980-01-01');
-      setNewPatPhone('(555) 012-3344');
+      setNewPatPhone('+1 (555) 012-3344');
       setNewPatAllergies('Ninguna');
       setNewPatConditions('Sano');
 
@@ -512,6 +547,7 @@ export default function App() {
                     setShowAppointmentModal(true);
                   }}
                   searchQuery={searchQuery}
+                  userProfile={userProfile}
                 />
               </motion.div>
             )}
@@ -560,6 +596,8 @@ export default function App() {
                   onAddPatientClick={() => setShowPatientModal(true)}
                   searchQuery={searchQuery}
                   prescriptions={prescriptions}
+                  clinicAddress={clinicAddress}
+                  clinicPhone={clinicPhone}
                 />
               </motion.div>
             )}
@@ -580,6 +618,8 @@ export default function App() {
                   prescriptions={prescriptions}
                   setPrescriptions={handleSetPrescriptions}
                   searchQuery={searchQuery}
+                  clinicAddress={clinicAddress}
+                  clinicPhone={clinicPhone}
                 />
               </motion.div>
             )}
@@ -651,6 +691,27 @@ export default function App() {
                       <div className="space-y-1">
                         <label className="block font-bold text-slate-400 uppercase">ID del Proveedor</label>
                         <input type="text" readOnly value="MED-99201-OP" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-slate-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block font-bold text-slate-400 uppercase">Dirección (Membrete)</label>
+                        <input 
+                          type="text" 
+                          value={clinicAddress}
+                          onChange={(e) => setClinicAddress(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-slate-700 focus:outline-none focus:border-indigo-600" 
+                          placeholder="Ej. Av. Principal 123"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block font-bold text-slate-400 uppercase">Teléfonos (Membrete)</label>
+                        <PatternFormat 
+                          format="+1 (###) ###-####"
+                          mask="_"
+                          value={clinicPhone}
+                          onValueChange={(values) => setClinicPhone(values.formattedValue)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-slate-700 focus:outline-none focus:border-indigo-600" 
+                          placeholder="Ej. +1 (555) 123-4567"
+                        />
                       </div>
                     </div>
 
@@ -928,6 +989,15 @@ export default function App() {
               {/* Form Body */}
               <form onSubmit={handleCreateAppointmentSubmit} className="p-6 space-y-4 text-xs">
                 
+                {appointmentError && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded text-red-700">
+                    <div className="flex gap-2 items-center">
+                      <AlertTriangle className="w-4 h-4" />
+                      <p className="font-bold text-[11px]">{appointmentError}</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1">
                   <label className="block font-bold text-slate-400 uppercase">Seleccionar Paciente</label>
                   <select
@@ -1128,11 +1198,12 @@ export default function App() {
                   </div>
                   <div className="space-y-1">
                     <label className="block font-bold text-slate-400 uppercase">Número de Teléfono</label>
-                    <input
-                      type="text"
+                    <PatternFormat
+                      format="+1 (###) ###-####"
+                      mask="_"
                       value={newPatPhone}
-                      onChange={(e) => setNewPatPhone(e.target.value)}
-                      placeholder="(555) 012-3344"
+                      onValueChange={(values) => setNewPatPhone(values.formattedValue)}
+                      placeholder="+1 (555) 012-3344"
                       className="w-full border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600"
                     />
                   </div>

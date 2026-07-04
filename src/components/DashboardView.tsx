@@ -4,7 +4,9 @@ import {
   Calendar, 
   Users, 
   FileText, 
-  CheckCircle, 
+  CheckCircle,
+  Check,
+  Clock, 
   FolderOpen, 
   Plus, 
   ChevronLeft, 
@@ -43,6 +45,10 @@ interface DashboardViewProps {
   onAddPatientClick: () => void;
   onAddAppointmentClick: () => void;
   searchQuery: string;
+  userProfile?: {
+    name: string;
+    role: string;
+  };
 }
 
 export default function DashboardView({ 
@@ -51,7 +57,8 @@ export default function DashboardView({
   onOpenPatientChart, 
   onAddPatientClick,
   onAddAppointmentClick,
-  searchQuery 
+  searchQuery,
+  userProfile
 }: DashboardViewProps) {
   const todayDateObj = new Date();
   const currentYear = todayDateObj.getFullYear();
@@ -179,6 +186,31 @@ export default function DashboardView({
     }
   });
 
+  // Helper to parse HH:MM AM/PM into minutes since midnight for sorting
+  const timeToMinutes = (timeStr: string) => {
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (!match) return 0;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3]?.toUpperCase() || (hours >= 8 && hours < 12 ? 'AM' : 'PM');
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  // Filter out completed and find the 3 most important pending appointments for today (or selected day) by priority (High first) and then by time
+  const importantUpcomingAppointments = [...appointmentsForSelectedDay]
+    .filter(app => app.status !== 'COMPLETED')
+    .sort((a, b) => {
+      const aHigh = a.priority === 'High' ? 1 : 0;
+      const bHigh = b.priority === 'High' ? 1 : 0;
+      if (aHigh !== bHigh) {
+        return bHigh - aHigh; // High priority first
+      }
+      return timeToMinutes(a.time) - timeToMinutes(b.time); // Earliest first
+    })
+    .slice(0, 3);
+
   const triggerToast = (msg: string) => {
     setShowToast(msg);
     setTimeout(() => {
@@ -240,7 +272,7 @@ export default function DashboardView({
       {/* Welcome & Quick Action Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Buenos Días, Dr. Miller</h2>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Buenos Días, {userProfile?.name || 'Doctor'}</h2>
           <p className="text-sm text-slate-500 font-medium">
             Aquí tiene su resumen clínico para hoy, {todayDateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.
           </p>
@@ -254,6 +286,122 @@ export default function DashboardView({
             <span>Añadir Paciente</span>
           </button>
         </div>
+      </div>
+
+      {/* Vista Compacta: Próximas Citas Importantes */}
+      <div className="bg-gradient-to-r from-slate-50 to-indigo-50/30 border border-indigo-100 rounded-xl p-5 shadow-xs">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Próximas Citas Destacadas</h3>
+              <p className="text-[11px] text-slate-500 font-medium">Priorizadas por urgencia de examen y horario</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
+            Hoy: {appointmentsForSelectedDay.filter(app => app.status !== 'COMPLETED').length} Pendientes
+          </span>
+        </div>
+
+        {importantUpcomingAppointments.length === 0 ? (
+          <div className="bg-white/80 border border-dashed border-slate-200 rounded-xl p-5 text-center text-slate-400 text-xs font-medium">
+            No hay citas pendientes destacadas para el día seleccionado.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {importantUpcomingAppointments.map((app) => {
+              const initials = app.patientName.split(' ').map(n => n[0]).join('');
+              const isHigh = app.priority === 'High';
+              return (
+                <motion.div
+                  key={app.id}
+                  whileHover={{ y: -2 }}
+                  className={`bg-white border rounded-xl p-4 shadow-xs transition-all relative overflow-hidden flex flex-col justify-between ${
+                    isHigh ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-100'
+                  }`}
+                >
+                  {/* Subtle Top Indicator Accent */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 ${
+                    isHigh ? 'bg-rose-500' : 'bg-indigo-500'
+                  }`} />
+                  
+                  <div className="space-y-2.5">
+                    {/* Header: Time & Priority badge */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 font-mono">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{app.time}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {isHigh && (
+                          <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-md">
+                            Alta
+                          </span>
+                        )}
+                        {app.isConfirmed ? (
+                          <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md flex items-center gap-0.5" title="Asistencia Confirmada">
+                            <Check className="w-2.5 h-2.5" />
+                            Conf.
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-md flex items-center gap-0.5" title="Confirmación Pendiente">
+                            <Clock className="w-2.5 h-2.5" />
+                            Pend.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Patient & Exam Details */}
+                    <div className="flex items-start gap-3">
+                      <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-xs shrink-0 border ${
+                        isHigh 
+                          ? 'bg-rose-50 text-rose-600 border-rose-100' 
+                          : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                      }`}>
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{app.patientName}</p>
+                        <p className="text-[10px] font-medium text-slate-500 truncate">{app.reason}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-slate-100 my-2.5" />
+
+                  {/* Footer Action row */}
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="font-semibold text-slate-400">
+                      Sala: <span className="text-slate-700 font-bold">
+                        {app.room === 'Room 1 (OCT)' ? 'Sala 1' : app.room === 'Room 2 (Visual Field)' ? 'Sala 2' : 'Sala 3'}
+                      </span>
+                    </span>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => handleOpenWaModal(app)}
+                        title="Avisar por WhatsApp"
+                        className="p-1 text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-150 rounded transition-all active:scale-90 cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onOpenPatientChart(app.patientId)}
+                        title="Ver Expediente"
+                        className="p-1 text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-150 rounded transition-all active:scale-90 cursor-pointer"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Grid: Stats & Mini-Calendar */}
@@ -538,7 +686,10 @@ export default function DashboardView({
                               {initials}
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-slate-800">{app.patientName}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold text-slate-800">{app.patientName}</p>
+                                {app.isConfirmed ? <Check className="w-3.5 h-3.5 text-emerald-500" title="Asistencia Confirmada" /> : <Clock className="w-3.5 h-3.5 text-slate-300" title="Confirmación Pendiente" />}
+                              </div>
                               <p className="text-[10px] text-slate-500 font-mono">ID: {app.patientId}</p>
                             </div>
                           </div>

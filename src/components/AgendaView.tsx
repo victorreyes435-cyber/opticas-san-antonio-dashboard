@@ -7,6 +7,7 @@ import {
   MoreHorizontal, 
   Clock, 
   CheckCircle,
+  Check,
   HelpCircle,
   Plus,
   Eye,
@@ -15,7 +16,8 @@ import {
   MessageSquare,
   Phone,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { Appointment, Technologist, Patient } from '../types';
 import { TECHNOLOGISTS } from '../data';
@@ -88,6 +90,11 @@ export default function AgendaView({
 
   // Appointment detail popup
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+
+  useEffect(() => {
+    setShowDeleteConfirm(false);
+  }, [selectedAppointment]);
 
   // WhatsApp states
   const [waPhone, setWaPhone] = useState<string>('');
@@ -583,8 +590,9 @@ export default function AgendaView({
                             }`}
                           >
                             <div>
-                              <div className={`text-xs font-bold truncate group-hover:underline ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
-                                {app.patientName} - {app.reason}
+                              <div className={`text-xs font-bold truncate group-hover:underline flex items-center gap-1 ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
+                                {app.isConfirmed ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" title="Asistencia Confirmada" /> : <Clock className="w-3.5 h-3.5 text-slate-300 shrink-0" title="Confirmación Pendiente" />}
+                                <span className="truncate">{app.patientName} - {app.reason}</span>
                               </div>
                               <div className={`text-[10px] font-semibold flex items-center gap-1 mt-1 ${isCompleted ? 'text-slate-500' : isArrived ? 'text-indigo-700' : 'text-amber-700'}`}>
                                 {isCompleted ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Clock className="w-3.5 h-3.5" />}
@@ -643,8 +651,9 @@ export default function AgendaView({
                             }`}
                           >
                             <div>
-                              <div className={`text-xs font-bold truncate group-hover:underline ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
-                                {app.patientName} - {app.reason}
+                              <div className={`text-xs font-bold truncate group-hover:underline flex items-center gap-1 ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
+                                {app.isConfirmed ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" title="Asistencia Confirmada" /> : <Clock className="w-3.5 h-3.5 text-slate-300 shrink-0" title="Confirmación Pendiente" />}
+                                <span className="truncate">{app.patientName} - {app.reason}</span>
                               </div>
                               <div className={`text-[10px] font-semibold flex items-center gap-1 mt-1 ${isCompleted ? 'text-slate-500' : isArrived ? 'text-indigo-700' : 'text-amber-700'}`}>
                                 {isCompleted ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Clock className="w-3.5 h-3.5" />}
@@ -712,8 +721,26 @@ export default function AgendaView({
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-indigo-50 text-indigo-700'
                     }`}>
-                      {selectedAppointment.status === 'COMPLETED' ? 'COMPLETADA' : selectedAppointment.status === 'ARRIVED' ? 'LLEGÓ' : 'PENDIENTE'}
+                      {selectedAppointment.status === 'COMPLETED' ? 'COMPLETADA' : selectedAppointment.status === 'ARRIVED' ? 'LLEGÓ' : 'PROGRAMADA'}
                     </span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Asistencia</p>
+                    <button
+                      onClick={() => {
+                        const updated = { ...selectedAppointment, isConfirmed: !selectedAppointment.isConfirmed };
+                        setAppointments(prev => prev.map(a => a.id === selectedAppointment.id ? updated : a));
+                        setSelectedAppointment(updated);
+                      }}
+                      className={`mt-0.5 flex items-center gap-1.5 text-[9px] font-bold px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                        selectedAppointment.isConfirmed
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-200'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200'
+                      }`}
+                    >
+                      {selectedAppointment.isConfirmed ? <Check className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-amber-600" />}
+                      {selectedAppointment.isConfirmed ? 'CONFIRMADA' : 'PENDIENTE'}
+                    </button>
                   </div>
                 </div>
 
@@ -774,87 +801,122 @@ export default function AgendaView({
                   )}
                 </div>
 
-                <div className="flex gap-2 pt-3 border-t border-slate-100">
-                  <button
-                    onClick={() => {
-                      onOpenPatientChart(selectedAppointment.patientId);
-                      setSelectedAppointment(null);
-                    }}
-                    className="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-98"
+                {showDeleteConfirm ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="bg-rose-50 border border-rose-100 rounded-lg p-3 space-y-3 mt-2 w-full text-left"
                   >
-                    <Eye className="w-4 h-4" />
-                    <span>Ver Expediente</span>
-                  </button>
-
-                  {googleToken && (
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-bold text-rose-900">¿Cancelar esta cita?</p>
+                        <p className="text-[10px] text-rose-750 leading-normal mt-0.5">
+                          Esta acción eliminará permanentemente la cita de la agenda de la clínica.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-md cursor-pointer transition-colors"
+                      >
+                        No, mantener
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAppointment(selectedAppointment.id)}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-md cursor-pointer transition-colors shadow-xs"
+                      >
+                        Sí, cancelar cita
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="flex gap-2 pt-3 border-t border-slate-100">
                     <button
-                      onClick={async () => {
-                        setSyncingId(selectedAppointment.id);
-                        try {
-                          const timeClean = selectedAppointment.time.split(' - ')[0] || selectedAppointment.time;
-                          let hours = parseInt(timeClean.split(':')[0], 10);
-                          const minutes = parseInt(timeClean.split(':')[1], 10) || 0;
-                          if (timeClean.toLowerCase().includes('pm') && hours < 12) hours += 12;
-                          if (timeClean.toLowerCase().includes('am') && hours === 12) hours = 0;
-                          
-                          const startDateTime = new Date();
-                          startDateTime.setHours(hours, minutes, 0, 0);
-                          const endDateTime = new Date(startDateTime.getTime() + 45 * 60 * 1000); // 45 mins duration
-
-                          const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-                            method: 'POST',
-                            headers: {
-                              Authorization: `Bearer ${googleToken}`,
-                              'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                              summary: `Cita Médica: ${selectedAppointment.patientName}`,
-                              description: `Examen: ${selectedAppointment.reason}\nSala: ${selectedAppointment.room}`,
-                              start: { dateTime: startDateTime.toISOString() },
-                              end: { dateTime: endDateTime.toISOString() }
-                            })
-                          });
-
-                          if (res.ok) {
-                            alert('¡Sincronizado con éxito en tu Google Calendar!');
-                            fetchGcalEvents();
-                          } else {
-                            alert('Error al sincronizar con Google Calendar.');
-                          }
-                        } catch (err) {
-                          console.error(err);
-                          alert('Fallo de conexión al sincronizar con Google Calendar.');
-                        } finally {
-                          setSyncingId(null);
-                        }
+                      onClick={() => {
+                        onOpenPatientChart(selectedAppointment.patientId);
+                        setSelectedAppointment(null);
                       }}
-                      disabled={syncingId === selectedAppointment.id}
-                      className="p-2.5 bg-emerald-50 hover:bg-emerald-100 disabled:bg-slate-50 text-emerald-700 hover:text-emerald-800 border border-emerald-200 rounded-lg transition-colors cursor-pointer active:scale-95 flex items-center justify-center font-bold text-xs shrink-0"
-                      title="Sincronizar con Google Calendar"
+                      className="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-98"
                     >
-                      {syncingId === selectedAppointment.id ? (
-                        <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <Calendar className="w-4 h-4 text-emerald-600" />
-                      )}
+                      <Eye className="w-4 h-4" />
+                      <span>Ver Expediente</span>
                     </button>
-                  )}
 
-                  <button
-                    onClick={() => handleDeleteAppointment(selectedAppointment.id)}
-                    className="p-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                    title="Cancelar Cita"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    {googleToken && (
+                      <button
+                        onClick={async () => {
+                          setSyncingId(selectedAppointment.id);
+                          try {
+                            const timeClean = selectedAppointment.time.split(' - ')[0] || selectedAppointment.time;
+                            let hours = parseInt(timeClean.split(':')[0], 10);
+                            const minutes = parseInt(timeClean.split(':')[1], 10) || 0;
+                            if (timeClean.toLowerCase().includes('pm') && hours < 12) hours += 12;
+                            if (timeClean.toLowerCase().includes('am') && hours === 12) hours = 0;
+                            
+                            const startDateTime = new Date();
+                            startDateTime.setHours(hours, minutes, 0, 0);
+                            const endDateTime = new Date(startDateTime.getTime() + 45 * 60 * 1000); // 45 mins duration
 
-                  <button
-                    onClick={() => setSelectedAppointment(null)}
-                    className="px-3 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-lg text-xs font-semibold cursor-pointer"
-                  >
-                    Cerrar
-                  </button>
-                </div>
+                            const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+                              method: 'POST',
+                              headers: {
+                                Authorization: `Bearer ${googleToken}`,
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({
+                                summary: `Cita Médica: ${selectedAppointment.patientName}`,
+                                description: `Examen: ${selectedAppointment.reason}\nSala: ${selectedAppointment.room}`,
+                                start: { dateTime: startDateTime.toISOString() },
+                                end: { dateTime: endDateTime.toISOString() }
+                              })
+                            });
+
+                            if (res.ok) {
+                              alert('¡Sincronizado con éxito en tu Google Calendar!');
+                              fetchGcalEvents();
+                            } else {
+                              alert('Error al sincronizar con Google Calendar.');
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert('Fallo de conexión al sincronizar con Google Calendar.');
+                          } finally {
+                            setSyncingId(null);
+                          }
+                        }}
+                        disabled={syncingId === selectedAppointment.id}
+                        className="p-2.5 bg-emerald-50 hover:bg-emerald-100 disabled:bg-slate-50 text-emerald-700 hover:text-emerald-800 border border-emerald-200 rounded-lg transition-colors cursor-pointer active:scale-95 flex items-center justify-center font-bold text-xs shrink-0"
+                        title="Sincronizar con Google Calendar"
+                      >
+                        {syncingId === selectedAppointment.id ? (
+                          <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Calendar className="w-4 h-4 text-emerald-600" />
+                        )}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="p-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Cancelar Cita"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedAppointment(null)}
+                      className="px-3 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-lg text-xs font-semibold cursor-pointer"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

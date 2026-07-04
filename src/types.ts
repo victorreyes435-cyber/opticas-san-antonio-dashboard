@@ -67,6 +67,7 @@ export interface Appointment {
   room: string;
   priority?: 'High' | 'Normal';
   date?: string;
+  isConfirmed?: boolean;
 }
 
 export interface Technologist {
