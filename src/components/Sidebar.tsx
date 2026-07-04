@@ -81,34 +81,6 @@ export default function Sidebar({ activeTab, setActiveTab, userProfile }: Sideba
         })}
       </ul>
 
-      {/* Cloud Databases */}
-      <div className="px-6 mt-6 mb-2">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Base de Datos Cloud</p>
-      </div>
-      <ul className="flex flex-col gap-1 px-4">
-        {[
-          { id: 'supabase', label: 'Supabase Cloud', icon: Database },
-        ].map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <li key={item.id}>
-              <button
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-left transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-indigo-600 text-white font-bold shadow-sm'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white active:scale-98'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span className="text-sm font-medium">{item.label}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
       {/* Footer Navigation */}
       <div className="mt-auto px-4 border-t border-slate-800 pt-4">
         <ul className="flex flex-col gap-1">
