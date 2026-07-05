@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PatternFormat } from 'react-number-format';
 import { 
@@ -104,6 +104,28 @@ export default function App() {
     avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80'
   });
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+
+  // Refs to always access the latest state in asynchronous closures and prevent stale updates
+  const patientsRef = useRef(patients);
+  const appointmentsRef = useRef(appointments);
+  const prescriptionsRef = useRef(prescriptions);
+  const visitHistoryRef = useRef(visitHistory);
+
+  useEffect(() => {
+    patientsRef.current = patients;
+  }, [patients]);
+
+  useEffect(() => {
+    appointmentsRef.current = appointments;
+  }, [appointments]);
+
+  useEffect(() => {
+    prescriptionsRef.current = prescriptions;
+  }, [prescriptions]);
+
+  useEffect(() => {
+    visitHistoryRef.current = visitHistory;
+  }, [visitHistory]);
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [newUserName, setNewUserName] = useState('');
   const [newUserRole, setNewUserRole] = useState<'Recepcionista' | 'Tecnólogo Médico'>('Tecnólogo Médico');
@@ -240,13 +262,15 @@ export default function App() {
     if (!window.confirm('¿Está seguro de que desea eliminar permanentemente este paciente y todo su historial?')) {
       return;
     }
+    // Optimistic UI update
+    setPatients(prev => prev.filter(p => p.id !== patientId));
+    triggerToast('Paciente eliminado con éxito');
+
     try {
       await firebaseService.deletePatient(patientId);
-      setPatients(prev => prev.filter(p => p.id !== patientId));
-      triggerToast('Paciente eliminado con éxito');
     } catch (err) {
-      console.error('Failed to delete patient:', err);
-      triggerToast('Error al eliminar paciente', true);
+      console.error('Failed to delete patient from Firestore:', err);
+      triggerToast('Paciente eliminado localmente. Error al sincronizar con el servidor.', true);
     }
   };
 
@@ -297,13 +321,15 @@ export default function App() {
     };
 
     try {
-      await firebaseService.saveAppointment(newAptPayload);
+      // Optimistic UI update
       setAppointments(prev => [newAptPayload, ...prev]);
       setShowAppointmentModal(false);
       triggerToast(`Cita programada para ${newAptPayload.patientName}`);
+
+      await firebaseService.saveAppointment(newAptPayload);
     } catch (err) {
-      console.error('Failed to create appointment:', err);
-      triggerToast('Error al programar la cita', true);
+      console.error('Failed to create appointment in Firestore:', err);
+      triggerToast('Cita programada localmente. Error de sincronización con el servidor.', true);
     }
   };
 
@@ -351,7 +377,7 @@ export default function App() {
     };
 
     try {
-      await firebaseService.savePatient(newPatPayload);
+      // Optimistic UI update
       setPatients(prev => [newPatPayload, ...prev]);
       setSelectedPatientId(newPatPayload.id);
       setNewAppPatientId(newPatPayload.id);
@@ -365,42 +391,52 @@ export default function App() {
 
       triggerToast(`Nuevo perfil de paciente creado para ${newPatPayload.name}`);
       setActiveTab('patients');
+
+      await firebaseService.savePatient(newPatPayload);
     } catch (err) {
-      console.error('Failed to create patient:', err);
-      triggerToast('Error al guardar el paciente', true);
+      console.error('Failed to create patient in Firestore:', err);
+      triggerToast('Paciente guardado localmente. Error de sincronización con el servidor.', true);
     }
   };
 
   // Custom setter wrappers to intercept local mutations and sync with Firebase
   const handleSetAppointments = async (value: React.SetStateAction<Appointment[]>) => {
     let updated: Appointment[];
+    const currentAppts = appointmentsRef.current;
     if (typeof value === 'function') {
-      updated = value(appointments);
+      updated = value(currentAppts);
     } else {
       updated = value;
     }
 
     // Detect if an item was deleted
-    const deletedItem = appointments.find(item => !updated.some(u => u.id === item.id));
+    const deletedItem = currentAppts.find(item => !updated.some(u => u.id === item.id));
     if (deletedItem) {
       try {
         await firebaseService.deleteAppointment(deletedItem.id);
         triggerToast('Cita cancelada con éxito');
       } catch (err) {
         console.error('Failed to delete appointment from DB:', err);
+        triggerToast('Cita cancelada localmente. Error de sincronización.', true);
       }
     }
 
     // Detect if an item was updated
     const updatedItem = updated.find(item => {
-      const orig = appointments.find(o => o.id === item.id);
-      return orig && (orig.status !== item.status || orig.time !== item.time || orig.room !== item.room);
+      const orig = currentAppts.find(o => o.id === item.id);
+      return orig && (
+        orig.status !== item.status || 
+        orig.time !== item.time || 
+        orig.room !== item.room ||
+        orig.isConfirmed !== item.isConfirmed
+      );
     });
     if (updatedItem) {
       try {
         await firebaseService.saveAppointment(updatedItem);
       } catch (err) {
         console.error('Failed to sync appointment update to DB:', err);
+        triggerToast('Aviso: Cambios guardados localmente. Error de sincronización.', true);
       }
     }
 
@@ -409,18 +445,20 @@ export default function App() {
 
   const handleSetPrescriptions = async (value: React.SetStateAction<Prescription[]>) => {
     let updated: Prescription[];
+    const currentPrescriptions = prescriptionsRef.current;
     if (typeof value === 'function') {
-      updated = value(prescriptions);
+      updated = value(currentPrescriptions);
     } else {
       updated = value;
     }
 
-    const newlyAdded = updated.find(item => !prescriptions.some(p => p.id === item.id));
+    const newlyAdded = updated.find(item => !currentPrescriptions.some(p => p.id === item.id));
     if (newlyAdded) {
       try {
         await firebaseService.savePrescription(newlyAdded);
       } catch (err) {
         console.error('Failed to sync new prescription to DB:', err);
+        triggerToast('Receta guardada localmente. Error de sincronización.', true);
       }
     }
 
@@ -429,18 +467,20 @@ export default function App() {
 
   const handleSetVisitHistory = async (value: React.SetStateAction<VisitHistoryItem[]>) => {
     let updated: VisitHistoryItem[];
+    const currentHistory = visitHistoryRef.current;
     if (typeof value === 'function') {
-      updated = value(visitHistory);
+      updated = value(currentHistory);
     } else {
       updated = value;
     }
 
-    const newlyAdded = updated.find(item => !visitHistory.some(v => v.id === item.id));
+    const newlyAdded = updated.find(item => !currentHistory.some(v => v.id === item.id));
     if (newlyAdded) {
       try {
         await firebaseService.saveVisitHistory(newlyAdded);
       } catch (err) {
         console.error('Failed to sync new visit history to DB:', err);
+        triggerToast('Historial guardado localmente. Error de sincronización.', true);
       }
     }
 
