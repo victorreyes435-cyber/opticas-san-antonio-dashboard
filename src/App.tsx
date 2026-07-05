@@ -36,7 +36,9 @@ import ContactsView from './components/ContactsView';
 import { INITIAL_PATIENTS, INITIAL_APPOINTMENTS, INITIAL_PRESCRIPTIONS, VISIT_HISTORY } from './data';
 import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile } from './types';
 import { useAuth } from './context/AuthContext.tsx';
-import { firebaseService } from './lib/firebaseService';
+import { firebaseService, handleFirestoreError, OperationType } from './lib/firebaseService';
+import { onSnapshot, collection, doc } from 'firebase/firestore';
+import { db } from './lib/firebase';
 
 export default function App() {
   const { user, token, loading, signIn, logOut } = useAuth();
@@ -107,6 +109,15 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('clinicPhone', clinicPhone);
   }, [clinicPhone]);
+
+  // Debounced write of clinic settings to Firestore
+  useEffect(() => {
+    if (!token) return;
+    const timer = setTimeout(() => {
+      firebaseService.saveClinicSettings(clinicAddress, clinicPhone);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [clinicAddress, clinicPhone, token]);
 
   // Unified global state stores with persistent memory falling back to API
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -212,13 +223,22 @@ export default function App() {
     }, 4500);
   };
 
-  // Fetch clinical database contents on sign-in
+  // Setup real-time listeners to keep clinical data and clinic settings synchronized
   useEffect(() => {
     if (!token) return;
 
-    const fetchClinicalData = async () => {
+    let unsubPatients: () => void;
+    let unsubAppointments: () => void;
+    let unsubPrescriptions: () => void;
+    let unsubHistory: () => void;
+    let unsubUsers: () => void;
+    let unsubSettings: () => void;
+
+    const setupSync = async () => {
       try {
         const uid = user?.uid || 'default-user';
+        
+        // Seed first if collections are empty (using the existing firebaseService loaders)
         const [profileRes, patientsRes, apptsRes, prescriptionsRes, visitRes, usersRes] = await Promise.all([
           firebaseService.fetchUserProfile(uid),
           firebaseService.fetchPatients(),
@@ -244,15 +264,81 @@ export default function App() {
           setSelectedPatientId(patientsRes[0].id);
           setNewAppPatientId(patientsRes[0].id);
         }
+
         setIsClinicalDataLoaded(true);
+
+        // 1. Real-time patients synchronization
+        unsubPatients = onSnapshot(collection(db, 'patients'), (snapshot) => {
+          const list = snapshot.docs.map(doc => doc.data() as Patient);
+          if (list.length > 0) {
+            setPatients(list);
+          }
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, 'patients');
+        });
+
+        // 2. Real-time appointments synchronization
+        unsubAppointments = onSnapshot(collection(db, 'appointments'), (snapshot) => {
+          const list = snapshot.docs.map(doc => doc.data() as Appointment);
+          setAppointments(list);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, 'appointments');
+        });
+
+        // 3. Real-time prescriptions synchronization
+        unsubPrescriptions = onSnapshot(collection(db, 'prescriptions'), (snapshot) => {
+          const list = snapshot.docs.map(doc => doc.data() as Prescription);
+          setPrescriptions(list);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, 'prescriptions');
+        });
+
+        // 4. Real-time visit history synchronization
+        unsubHistory = onSnapshot(collection(db, 'visitHistory'), (snapshot) => {
+          const list = snapshot.docs.map(doc => doc.data() as VisitHistoryItem);
+          setVisitHistory(list);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, 'visitHistory');
+        });
+
+        // 5. Real-time users synchronization
+        unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+          const list = snapshot.docs.map(doc => doc.data() as UserProfile);
+          if (list.length > 0) {
+            setAllUsers(list);
+          }
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, 'users');
+        });
+
+        // 6. Real-time settings synchronization (for clinic config parameters)
+        unsubSettings = onSnapshot(doc(db, 'settings', 'clinic'), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.address) setClinicAddress(data.address);
+            if (data.phone) setClinicPhone(data.phone);
+          }
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, 'settings/clinic');
+        });
+
       } catch (err) {
-        console.error('Error fetching clinical data from Firebase:', err);
+        console.error('Error setting up real-time sync with Firebase:', err);
         triggerToast('Error de conexión con Firebase Firestore', true);
         setIsClinicalDataLoaded(true);
       }
     };
 
-    fetchClinicalData();
+    setupSync();
+
+    return () => {
+      if (unsubPatients) unsubPatients();
+      if (unsubAppointments) unsubAppointments();
+      if (unsubPrescriptions) unsubPrescriptions();
+      if (unsubHistory) unsubHistory();
+      if (unsubUsers) unsubUsers();
+      if (unsubSettings) unsubSettings();
+    };
   }, [token, user]);
 
   // Handle auto-selection of first patient if active becomes empty
@@ -856,59 +942,7 @@ export default function App() {
                       </span>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 space-y-3">
-                      <h4 className="font-bold text-slate-700 flex items-center gap-1.5">
-                        {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
-                        <span>Tema de la Interfaz</span>
-                      </h4>
-                      <p className="text-slate-400 text-[11px] leading-relaxed">
-                        Cambie entre el modo claro tradicional y el modo oscuro optimizado para baja luminosidad durante exámenes visuales.
-                      </p>
-                      <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg mt-2">
-                        <span className="font-semibold text-slate-600">
-                          {isDarkMode ? 'Modo Oscuro Activo' : 'Modo Claro Activo'}
-                        </span>
-                        <button
-                          onClick={() => setIsDarkMode(!isDarkMode)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                            isDarkMode ? 'bg-indigo-600' : 'bg-slate-200'
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                              isDarkMode ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                          />
-                        </button>
-                      </div>
 
-                      <div className="pt-2 border-t border-dashed border-slate-200 space-y-2 mt-2">
-                        <h5 className="font-bold text-slate-700 flex items-center gap-1.5">
-                          <Eye className="w-4 h-4 text-indigo-600 animate-pulse" />
-                          <span>Accesibilidad (Alto Contraste)</span>
-                        </h5>
-                        <p className="text-slate-400 text-[11px] leading-relaxed">
-                          Ajusta los colores y aumenta el contraste para facilitar la lectura a personas con baja visión o fatiga ocular.
-                        </p>
-                        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                          <span className="font-semibold text-slate-600">
-                            {isHighContrast ? 'Alto Contraste Activado' : 'Contraste Estándar'}
-                          </span>
-                          <button
-                            onClick={() => setIsHighContrast(!isHighContrast)}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                              isHighContrast ? 'bg-indigo-600' : 'bg-slate-200'
-                            }`}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                                isHighContrast ? 'translate-x-5' : 'translate-x-0'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -1118,9 +1152,10 @@ export default function App() {
         {showAppointmentModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ y: 24, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.98 }}
+              transition={{ type: "spring", duration: 0.4, bounce: 0.12 }}
               className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden border border-slate-200"
             >
               {/* Modal Head */}
@@ -1305,9 +1340,10 @@ export default function App() {
         {showPatientModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ y: 24, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.98 }}
+              transition={{ type: "spring", duration: 0.4, bounce: 0.12 }}
               className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden border border-slate-200"
             >
               {/* Modal Head */}

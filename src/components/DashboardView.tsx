@@ -518,67 +518,7 @@ export default function DashboardView({
       </div>
 
       {/* Visualizaciones de Datos de la Clínica */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card 1: Tendencias de Ocupación */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">Tendencias de Ocupación</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Porcentaje de capacidad diaria ocupada</p>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-              Últimos 7 Días
-            </span>
-          </div>
-          
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={occupancyData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorOcupacion" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.01}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#94a3b8" 
-                  fontSize={10} 
-                  fontWeight={500}
-                  tickLine={false} 
-                  axisLine={false} 
-                />
-                <YAxis 
-                  stroke="#94a3b8" 
-                  fontSize={10} 
-                  fontWeight={500}
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(val) => `${val}%`}
-                  domain={[0, 100]}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area 
-                  name="Ocupación" 
-                  type="monotone" 
-                  dataKey="ocupacion" 
-                  stroke="#10b981" 
-                  strokeWidth={2.5}
-                  fillOpacity={1} 
-                  fill="url(#colorOcupacion)" 
-                  unit="%"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-6">
         {/* Card 2: Citas por Especialista / Departamento */}
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">

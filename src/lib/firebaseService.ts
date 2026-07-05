@@ -36,7 +36,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -222,6 +222,14 @@ export const firebaseService = {
       await setDoc(doc(db, 'users', user.id!), user);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.id}`);
+    }
+  },
+
+  async saveClinicSettings(address: string, phone: string): Promise<void> {
+    try {
+      await setDoc(doc(db, 'settings', 'clinic'), { address, phone });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'settings/clinic');
     }
   }
 };

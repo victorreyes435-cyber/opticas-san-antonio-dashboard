@@ -16,13 +16,6 @@ service cloud.firestore {
       return true;
     }
 
-    // Schema Validation Helpers
-    function isValidPatient(data) {
-      return data.keys().hasAll(['id', 'name'])
-        && data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() <= 128;
-    }
-
     // Collection matches
     match /users/{userId} {
       allow read, write: if true;
@@ -41,6 +34,10 @@ service cloud.firestore {
     }
 
     match /visitHistory/{visitId} {
+      allow read, write: if true;
+    }
+
+    match /settings/{settingsId} {
       allow read, write: if true;
     }
   }
