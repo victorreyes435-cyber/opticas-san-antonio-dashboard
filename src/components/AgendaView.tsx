@@ -17,7 +17,8 @@ import {
   Phone,
   Calendar,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Bell
 } from 'lucide-react';
 import { Appointment, Technologist, Patient } from '../types';
 import { TECHNOLOGISTS } from '../data';
@@ -30,6 +31,7 @@ interface AgendaViewProps {
   onOpenPatientChart: (patientId: string) => void;
   onAddAppointmentClick: () => void;
   searchQuery: string;
+  triggerToast?: (msg: string, isError?: boolean) => void;
 }
 
 export default function AgendaView({ 
@@ -38,7 +40,8 @@ export default function AgendaView({
   setAppointments,
   onOpenPatientChart,
   onAddAppointmentClick,
-  searchQuery
+  searchQuery,
+  triggerToast
 }: AgendaViewProps) {
   const { googleToken, signIn } = useAuth();
   const [gcalEvents, setGcalEvents] = useState<any[]>([]);
@@ -489,6 +492,36 @@ export default function AgendaView({
                 Vista Semanal
               </button>
             </div>
+
+            {/* Quick Professional Filter */}
+            <div className="hidden lg:flex items-center gap-1.5 bg-slate-100 rounded-lg p-0.5 border border-slate-200 text-xs shrink-0 ml-2">
+              <span className="text-[9px] font-bold text-slate-400 uppercase px-2">Ver Carga de:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedTechs(['dr_reynolds', 'sarah_chen', 'marcus_pierce'])}
+                className={`px-2.5 py-1 text-xs font-bold rounded cursor-pointer transition-all ${
+                  selectedTechs.length === 3
+                    ? 'bg-white shadow-sm text-indigo-600'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Todos
+              </button>
+              {TECHNOLOGISTS.map((tech) => (
+                <button
+                  key={tech.id}
+                  type="button"
+                  onClick={() => setSelectedTechs([tech.id])}
+                  className={`px-2.5 py-1 text-xs font-bold rounded cursor-pointer transition-all ${
+                    selectedTechs.length === 1 && selectedTechs.includes(tech.id)
+                      ? 'bg-white shadow-sm text-indigo-600'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {tech.id === 'dr_reynolds' ? 'Dr. Reynolds' : tech.id === 'sarah_chen' ? 'Dra. Chen' : tech.name}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -522,15 +555,23 @@ export default function AgendaView({
             <div className="w-16 shrink-0 border-r border-slate-200 bg-slate-50"></div>
             
             {/* Dynamic Provider Columns */}
-            <div className="flex-1 grid grid-cols-2 divide-x divide-slate-200">
-              <div className="p-3 text-center">
-                <div className="text-xs font-bold text-slate-800">Dr. Reynolds</div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Sala 1 (OCT)</div>
-              </div>
-              <div className="p-3 text-center">
-                <div className="text-xs font-bold text-slate-800">Sarah Chen (OD)</div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Sala 2 (Campo Visual)</div>
-              </div>
+            <div className="flex-grow flex-1 grid divide-x divide-slate-200" style={{ gridTemplateColumns: `repeat(${selectedTechs.length || 1}, minmax(0, 1fr))` }}>
+              {selectedTechs.map((techId) => {
+                const tech = TECHNOLOGISTS.find(t => t.id === techId);
+                if (!tech) return null;
+                const roomName = techId === 'dr_reynolds' ? 'Sala 1 (OCT)' : techId === 'sarah_chen' ? 'Sala 2 (Campo Visual)' : 'Sala 3 (Estándar)';
+                return (
+                  <div key={techId} className="p-3 text-center">
+                    <div className="text-xs font-bold text-slate-800">{tech.name}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{roomName}</div>
+                  </div>
+                );
+              })}
+              {selectedTechs.length === 0 && (
+                <div className="p-3 text-center text-slate-400 text-xs font-bold">
+                  Ningún profesional seleccionado
+                </div>
+              )}
             </div>
           </div>
 
@@ -553,130 +594,104 @@ export default function AgendaView({
 
             {/* Interactive Grid Columns */}
             <div className="flex-grow flex relative">
-              {/* Columns divide line */}
-              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-200 pointer-events-none"></div>
+              {selectedTechs.length === 0 ? (
+                <div className="flex-grow flex items-center justify-center p-8 bg-slate-50/50">
+                  <div className="text-center space-y-1.5 max-w-xs">
+                    <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">Sin especialistas seleccionados</p>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Por favor, selecciona al menos un tecnólogo en el panel lateral o utiliza el selector rápido superior para ver la carga de trabajo.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-grow grid divide-x divide-slate-200/50" style={{ gridTemplateColumns: `repeat(${selectedTechs.length}, minmax(0, 1fr))` }}>
+                  {selectedTechs.map((techId) => {
+                    const techAppointments = appointmentsForSelectedDay.filter(app => app.technologistId === techId);
+                    return (
+                      <div key={techId} className="relative divide-y divide-slate-200/50 h-full">
+                        <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
+                        <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
+                        <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
+                        <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
+                        <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative bg-slate-50/10" onClick={onAddAppointmentClick}></div>
 
-              {/* Dr Reynolds Column Slots */}
-              <div className="flex-grow flex-1 relative divide-y divide-slate-200/50">
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative bg-slate-50/10" onClick={onAddAppointmentClick}></div>
-
-                {/* Absolutes for Dr Reynolds */}
-                {selectedTechs.includes('dr_reynolds') && (
-                  <>
-                    {appointmentsForSelectedDay
-                      .filter(app => app.technologistId === 'dr_reynolds')
-                      .map(app => {
-                        const { top, height } = getPositionForTime(app.time);
-                        const isCompleted = app.status === 'COMPLETED';
-                        const isArrived = app.status === 'ARRIVED';
-                        const isHighPriority = app.priority === 'High';
-                        
-                        return (
-                          <motion.div 
-                            key={app.id}
-                            whileHover={{ scale: 1.01 }}
-                            onClick={() => setSelectedAppointment(app)}
-                            style={{ top: `${top}px`, height: `${height}px` }}
-                            className={`absolute left-1 right-2 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group border-l-4 transition-all ${
-                              isCompleted
-                                ? 'bg-slate-50 border-slate-400 border opacity-80'
-                                : isArrived
-                                ? 'bg-indigo-50/80 border-indigo-200 border-l-indigo-600 text-indigo-950'
-                                : 'bg-amber-50/80 border-amber-200 border-l-amber-600 text-amber-950'
-                            }`}
-                          >
-                            <div>
-                              <div className={`text-xs font-bold truncate group-hover:underline flex items-center gap-1 ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
-                                {app.isConfirmed ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" title="Asistencia Confirmada" /> : <Clock className="w-3.5 h-3.5 text-slate-300 shrink-0" title="Confirmación Pendiente" />}
-                                <span className="truncate">{app.patientName} - {app.reason}</span>
+                        {/* Absolutes for this technologist */}
+                        {techAppointments.map((app) => {
+                          const { top, height } = getPositionForTime(app.time);
+                          const isCompleted = app.status === 'COMPLETED';
+                          const isArrived = app.status === 'ARRIVED';
+                          const isHighPriority = app.priority === 'High';
+                          
+                          return (
+                            <motion.div 
+                              key={app.id}
+                              whileHover={{ scale: 1.01 }}
+                              onClick={() => setSelectedAppointment(app)}
+                              style={{ top: `${top}px`, height: `${height}px` }}
+                              className={`absolute left-1 right-2 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group border-l-4 transition-all ${
+                                isCompleted
+                                  ? 'bg-slate-50 border-slate-400 border opacity-80'
+                                  : isArrived
+                                  ? 'bg-indigo-50/80 border-indigo-200 border-l-indigo-600 text-indigo-950'
+                                  : 'bg-amber-50/80 border-amber-200 border-l-amber-600 text-amber-950'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between gap-1.5 w-full">
+                                  <div className={`text-xs font-bold truncate group-hover:underline flex items-center gap-1 min-w-0 flex-1 ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
+                                    {app.isConfirmed ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" title="Asistencia Confirmada" /> : <Clock className="w-3.5 h-3.5 text-slate-300 shrink-0" title="Confirmación Pendiente" />}
+                                    <span className="truncate" title={`${app.patientName} - ${app.reason}`}>{app.patientName} - {app.reason}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const patient = patients?.find(p => p.id === app.patientId);
+                                      const isUnregistered = app.patientId.startsWith('unreg_');
+                                      let msg = '';
+                                      if (isUnregistered) {
+                                        msg = `🔔 Recordatorio enviado a ${app.patientName} (Paciente no registrado) vía SMS de cortesía.`;
+                                      } else {
+                                        const phoneText = patient?.phone || '+56 9 1234 5678';
+                                        const emailSimulated = patient ? `${patient.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '.')}@example.com` : 'correo@ejemplo.com';
+                                        msg = `🔔 Recordatorio enviado a ${app.patientName}: SMS al ${phoneText} y Correo a ${emailSimulated}.`;
+                                      }
+                                      if (triggerToast) {
+                                        triggerToast(msg);
+                                      } else {
+                                        alert(msg);
+                                      }
+                                    }}
+                                    className="p-1 rounded-md bg-white/60 hover:bg-white text-slate-500 hover:text-indigo-600 border border-slate-200/50 hover:border-indigo-200 transition-all active:scale-90 shadow-2xs shrink-0"
+                                    title="Enviar Recordatorio Simulado (Email/SMS)"
+                                  >
+                                    <Bell className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <div className={`text-[10px] font-semibold flex items-center gap-1 mt-1 ${isCompleted ? 'text-slate-500' : isArrived ? 'text-indigo-700' : 'text-amber-700'}`}>
+                                  {isCompleted ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Clock className="w-3.5 h-3.5" />}
+                                  <span>{app.time}</span>
+                                </div>
                               </div>
-                              <div className={`text-[10px] font-semibold flex items-center gap-1 mt-1 ${isCompleted ? 'text-slate-500' : isArrived ? 'text-indigo-700' : 'text-amber-700'}`}>
-                                {isCompleted ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Clock className="w-3.5 h-3.5" />}
-                                <span>{app.time}</span>
-                              </div>
-                            </div>
-                            <div className="mt-auto flex flex-wrap gap-1">
-                              {isHighPriority && (
-                                <span className="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded">
-                                  Prioridad Alta
+                              <div className="mt-auto flex flex-wrap gap-1">
+                                {isHighPriority && (
+                                  <span className="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded">
+                                    Prioridad Alta
+                                  </span>
+                                )}
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isCompleted ? 'bg-slate-100 text-slate-500' : isArrived ? 'bg-white/85 text-indigo-700 border-indigo-200/50' : 'bg-white/85 text-amber-700 border-amber-200/50'}`}>
+                                  {app.room === 'Room 1 (OCT)' ? 'Sala 1' : app.room === 'Room 2 (Visual Field)' ? 'Sala 2' : 'Sala 3'}
                                 </span>
-                              )}
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isCompleted ? 'bg-slate-100 text-slate-500' : isArrived ? 'bg-white/85 text-indigo-700 border-indigo-200/50' : 'bg-white/85 text-amber-700 border-amber-200/50'}`}>
-                                {app.room === 'Room 1 (OCT)' ? 'Sala 1' : app.room === 'Room 2 (Visual Field)' ? 'Sala 2' : 'Sala 3'}
-                              </span>
-                            </div>
-                          </motion.div>
-                        );
-                      })
-                    }
-                  </>
-                )}
-              </div>
-
-              {/* Sarah Chen (OD) Column Slots */}
-              <div className="flex-grow flex-1 relative divide-y divide-slate-200/50">
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative" onClick={onAddAppointmentClick}></div>
-                <div className="h-24 hover:bg-indigo-50/20 transition-colors cursor-crosshair relative bg-slate-50/10" onClick={onAddAppointmentClick}></div>
-
-                {/* Absolutes for Sarah Chen */}
-                {selectedTechs.includes('sarah_chen') && (
-                  <>
-                    {appointmentsForSelectedDay
-                      .filter(app => app.technologistId === 'sarah_chen')
-                      .map(app => {
-                        const { top, height } = getPositionForTime(app.time);
-                        const isCompleted = app.status === 'COMPLETED';
-                        const isArrived = app.status === 'ARRIVED';
-                        const isHighPriority = app.priority === 'High';
-                        
-                        return (
-                          <motion.div 
-                            key={app.id}
-                            whileHover={{ scale: 1.01 }}
-                            onClick={() => setSelectedAppointment(app)}
-                            style={{ top: `${top}px`, height: `${height}px` }}
-                            className={`absolute left-1 right-2 rounded-r-lg shadow-sm p-2.5 flex flex-col justify-between cursor-pointer group border-l-4 transition-all ${
-                              isCompleted
-                                ? 'bg-slate-50 border-slate-400 border opacity-80'
-                                : isArrived
-                                ? 'bg-indigo-50/80 border-indigo-200 border-l-indigo-600 text-indigo-950'
-                                : 'bg-amber-50/80 border-amber-200 border-l-amber-600 text-amber-950'
-                            }`}
-                          >
-                            <div>
-                              <div className={`text-xs font-bold truncate group-hover:underline flex items-center gap-1 ${isCompleted ? 'text-slate-700 line-through decoration-slate-400' : 'text-slate-900'}`}>
-                                {app.isConfirmed ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" title="Asistencia Confirmada" /> : <Clock className="w-3.5 h-3.5 text-slate-300 shrink-0" title="Confirmación Pendiente" />}
-                                <span className="truncate">{app.patientName} - {app.reason}</span>
                               </div>
-                              <div className={`text-[10px] font-semibold flex items-center gap-1 mt-1 ${isCompleted ? 'text-slate-500' : isArrived ? 'text-indigo-700' : 'text-amber-700'}`}>
-                                {isCompleted ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Clock className="w-3.5 h-3.5" />}
-                                <span>{app.time}</span>
-                              </div>
-                            </div>
-                            <div className="mt-auto flex flex-wrap gap-1">
-                              {isHighPriority && (
-                                <span className="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded">
-                                  Prioridad Alta
-                                </span>
-                              )}
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isCompleted ? 'bg-slate-100 text-slate-500' : isArrived ? 'bg-white/85 text-indigo-700 border-indigo-200/50' : 'bg-white/85 text-amber-700 border-amber-200/50'}`}>
-                                {app.room === 'Room 1 (OCT)' ? 'Sala 1' : app.room === 'Room 2 (Visual Field)' ? 'Sala 2' : 'Sala 3'}
-                              </span>
-                            </div>
-                          </motion.div>
-                        );
-                      })
-                    }
-                  </>
-                )}
-              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -799,6 +814,34 @@ export default function AgendaView({
                       </button>
                     </div>
                   )}
+                </div>
+
+                {/* Seccion Recordatorio Simulado */}
+                <div className="pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const patient = patients?.find(p => p.id === selectedAppointment.patientId);
+                      const isUnregistered = selectedAppointment.patientId.startsWith('unreg_');
+                      let msg = '';
+                      if (isUnregistered) {
+                        msg = `🔔 Recordatorio enviado a ${selectedAppointment.patientName} (Paciente no registrado) vía SMS de cortesía.`;
+                      } else {
+                        const phoneText = patient?.phone || '+56 9 1234 5678';
+                        const emailSimulated = patient ? `${patient.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '.')}@example.com` : 'correo@ejemplo.com';
+                        msg = `🔔 Recordatorio enviado a ${selectedAppointment.patientName}: SMS al ${phoneText} y Correo a ${emailSimulated}.`;
+                      }
+                      if (triggerToast) {
+                        triggerToast(msg);
+                      } else {
+                        alert(msg);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100/80 text-indigo-800 font-bold transition-all text-xs cursor-pointer border border-indigo-100"
+                  >
+                    <Bell className="w-4 h-4 text-indigo-600" />
+                    <span>Enviar Aviso de Recordatorio (Email/SMS)</span>
+                  </button>
                 </div>
 
                 {showDeleteConfirm ? (

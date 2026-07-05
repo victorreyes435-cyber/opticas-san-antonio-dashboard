@@ -13,7 +13,8 @@ import {
   FileText,
   UserPlus,
   BookOpen,
-  Printer
+  Printer,
+  Trash2
 } from 'lucide-react';
 import { Patient, VisitHistoryItem, Prescription } from '../types';
 
@@ -25,6 +26,8 @@ interface PatientsViewProps {
   setVisitHistory: Dispatch<SetStateAction<VisitHistoryItem[]>>;
   onSwitchToPrescriptions: () => void;
   onAddPatientClick: () => void;
+  onDeletePatient?: (patientId: string) => void;
+  isDataLoaded?: boolean;
   searchQuery: string;
   prescriptions: Prescription[];
   clinicAddress?: string;
@@ -39,6 +42,8 @@ export default function PatientsView({
   setVisitHistory,
   onSwitchToPrescriptions,
   onAddPatientClick,
+  onDeletePatient,
+  isDataLoaded = true,
   searchQuery,
   prescriptions,
   clinicAddress = 'Av. Principal 123, Ciudad Central',
@@ -139,11 +144,32 @@ export default function PatientsView({
     }, 1200);
   };
 
-  if (patients.length === 0) {
+  if (!isDataLoaded && patients.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center w-full">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p className="text-sm font-medium text-slate-500">Cargando datos de pacientes...</p>
+      </div>
+    );
+  }
+
+  if (patients.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center w-full max-w-md mx-auto bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
+        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+          <BookOpen className="w-6 h-6 text-slate-400" />
+        </div>
+        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">No Hay Pacientes Registrados</h3>
+        <p className="text-xs text-slate-500 leading-relaxed mb-6">
+          Actualmente no hay perfiles de pacientes en la base de datos. Cree un nuevo perfil de paciente para comenzar a registrar recetas y consultas.
+        </p>
+        <button
+          onClick={onAddPatientClick}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm"
+        >
+          <UserPlus className="w-4 h-4" />
+          <span>Registrar Primer Paciente</span>
+        </button>
       </div>
     );
   }
@@ -200,11 +226,21 @@ export default function PatientsView({
               <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wide">Grupo Sanguíneo</span>
               <span className="font-semibold text-slate-700">{currentPatient.bloodType}</span>
             </div>
-            <div className="flex justify-between pb-1">
+            <div className="flex justify-between pb-1 border-b border-slate-50">
               <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wide">Teléfono</span>
               <span className="font-semibold text-slate-700">{currentPatient.phone}</span>
             </div>
           </div>
+
+          {onDeletePatient && currentPatient.id && (
+            <button
+              onClick={() => onDeletePatient(currentPatient.id)}
+              className="mt-4 w-full px-3 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg hover:bg-rose-100/50 hover:text-rose-700 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Eliminar Paciente</span>
+            </button>
+          )}
         </div>
 
         {/* Morbid Antecedents */}

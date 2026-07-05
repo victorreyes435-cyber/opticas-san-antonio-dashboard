@@ -123,8 +123,16 @@ export default function App() {
   useEffect(() => {
     if (showAppointmentModal) {
       setAppointmentError(null);
+      setIsManualPatientName(false);
+      setNewAppPatientManualName('');
     }
   }, [showAppointmentModal]);
+
+  useEffect(() => {
+    if (showPatientModal) {
+      setPatientError(null);
+    }
+  }, [showPatientModal]);
 
   // New Appointment Form state
   const [newAppPatientId, setNewAppPatientId] = useState('');
@@ -150,6 +158,12 @@ export default function App() {
   const [newPatPhone, setNewPatPhone] = useState('+1 (555) 012-3344');
   const [newPatAllergies, setNewPatAllergies] = useState('Ninguna');
   const [newPatConditions, setNewPatConditions] = useState('Sano');
+  const [patientError, setPatientError] = useState<string | null>(null);
+
+  // Manual scheduling and loading states
+  const [isManualPatientName, setIsManualPatientName] = useState(false);
+  const [newAppPatientManualName, setNewAppPatientManualName] = useState('');
+  const [isClinicalDataLoaded, setIsClinicalDataLoaded] = useState(false);
 
   // Helper trigger
   const triggerToast = (msg: string, isError = false) => {
@@ -193,9 +207,11 @@ export default function App() {
           setSelectedPatientId(patientsRes[0].id);
           setNewAppPatientId(patientsRes[0].id);
         }
+        setIsClinicalDataLoaded(true);
       } catch (err) {
         console.error('Error fetching clinical data from Firebase:', err);
         triggerToast('Error de conexión con Firebase Firestore', true);
+        setIsClinicalDataLoaded(true);
       }
     };
 
@@ -210,9 +226,28 @@ export default function App() {
   }, [patients, selectedPatientId]);
 
   const handleOpenPatientChart = (patientId: string) => {
+    const exists = patients.some(p => p.id === patientId);
+    if (!exists) {
+      triggerToast("Este paciente no está registrado. Registre su perfil primero.", true);
+      return;
+    }
     setSelectedPatientId(patientId);
     setActiveTab('patients');
     triggerToast("Expediente del paciente cargado con éxito.");
+  };
+
+  const handleDeletePatient = async (patientId: string) => {
+    if (!window.confirm('¿Está seguro de que desea eliminar permanentemente este paciente y todo su historial?')) {
+      return;
+    }
+    try {
+      await firebaseService.deletePatient(patientId);
+      setPatients(prev => prev.filter(p => p.id !== patientId));
+      triggerToast('Paciente eliminado con éxito');
+    } catch (err) {
+      console.error('Failed to delete patient:', err);
+      triggerToast('Error al eliminar paciente', true);
+    }
   };
 
   const handleCreateAppointmentSubmit = async (e: React.FormEvent) => {
@@ -225,6 +260,11 @@ export default function App() {
     
     if (apptDate < today) {
       setAppointmentError("No se pueden programar citas en fechas pasadas.");
+      return;
+    }
+
+    if (isManualPatientName && !newAppPatientManualName.trim()) {
+      setAppointmentError("Por favor, ingrese el nombre del paciente no registrado.");
       return;
     }
     
@@ -240,13 +280,14 @@ export default function App() {
       return;
     }
 
-    const patientObj = patients.find(p => p.id === newAppPatientId) || patients[0];
+    const finalPatientId = isManualPatientName ? `unreg_${Date.now()}` : newAppPatientId;
+    const finalPatientName = isManualPatientName ? newAppPatientManualName.trim() : (patients.find(p => p.id === newAppPatientId)?.name || 'Unknown Patient');
     
     const newAptPayload: Appointment = {
       id: `apt_${Date.now()}`,
       time: newAppTime,
-      patientId: newAppPatientId,
-      patientName: patientObj ? patientObj.name : 'Unknown Patient',
+      patientId: finalPatientId,
+      patientName: finalPatientName,
       reason: newAppReason,
       status: 'SCHEDULED',
       technologistId: newAppTech,
@@ -269,6 +310,28 @@ export default function App() {
   const handleCreatePatientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPatName.trim()) return;
+    setPatientError(null);
+
+    // Check duplicate name or phone number
+    const normalizedNewName = newPatName.trim().toLowerCase();
+    const cleanNewPhone = newPatPhone.replace(/\D/g, '');
+
+    const nameExists = patients.some(p => p.name.trim().toLowerCase() === normalizedNewName);
+    const phoneExists = cleanNewPhone !== '' && patients.some(p => p.phone && p.phone.replace(/\D/g, '') === cleanNewPhone);
+
+    if (nameExists || phoneExists) {
+      let msg = '';
+      if (nameExists && phoneExists) {
+        msg = `Ya existe un paciente con el mismo nombre y número de teléfono.`;
+      } else if (nameExists) {
+        msg = `Ya existe un paciente registrado con el nombre "${newPatName.trim()}".`;
+      } else {
+        msg = `Ya existe un paciente registrado con el número de teléfono "${newPatPhone}".`;
+      }
+      setPatientError(msg);
+      triggerToast(msg, true);
+      return;
+    }
 
     const birthYear = new Date(newPatDob).getFullYear();
     const currentYear = new Date().getFullYear();
@@ -573,6 +636,7 @@ export default function App() {
                     setShowAppointmentModal(true);
                   }}
                   searchQuery={searchQuery}
+                  triggerToast={triggerToast}
                 />
               </motion.div>
             )}
@@ -594,6 +658,8 @@ export default function App() {
                   setVisitHistory={handleSetVisitHistory}
                   onSwitchToPrescriptions={() => setActiveTab('prescriptions')}
                   onAddPatientClick={() => setShowPatientModal(true)}
+                  onDeletePatient={handleDeletePatient}
+                  isDataLoaded={isClinicalDataLoaded}
                   searchQuery={searchQuery}
                   prescriptions={prescriptions}
                   clinicAddress={clinicAddress}
@@ -998,17 +1064,44 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <label className="block font-bold text-slate-400 uppercase">Seleccionar Paciente</label>
-                  <select
-                    value={newAppPatientId}
-                    onChange={(e) => setNewAppPatientId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 px-3 font-semibold text-gray-700 focus:outline-none"
-                  >
-                    {patients.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
-                    ))}
-                  </select>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="block font-bold text-slate-400 uppercase">Paciente</label>
+                    <label className="flex items-center gap-1 cursor-pointer text-indigo-600 font-bold text-[10px] uppercase">
+                      <input
+                        type="checkbox"
+                        checked={isManualPatientName}
+                        onChange={(e) => setIsManualPatientName(e.target.checked)}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Nombre Manual (No Registrado)</span>
+                    </label>
+                  </div>
+                  
+                  {isManualPatientName ? (
+                    <input
+                      type="text"
+                      required
+                      value={newAppPatientManualName}
+                      onChange={(e) => setNewAppPatientManualName(e.target.value)}
+                      placeholder="Escriba el nombre del nuevo paciente..."
+                      className="w-full border border-slate-200 rounded-lg p-2 font-semibold text-gray-700 focus:outline-none focus:border-indigo-600"
+                    />
+                  ) : (
+                    <select
+                      value={newAppPatientId}
+                      onChange={(e) => setNewAppPatientId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 px-3 font-semibold text-gray-700 focus:outline-none cursor-pointer"
+                    >
+                      {patients.length === 0 ? (
+                        <option value="">No hay pacientes registrados</option>
+                      ) : (
+                        patients.map(p => (
+                          <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                        ))
+                      )}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1148,6 +1241,15 @@ export default function App() {
 
               {/* Form Body */}
               <form onSubmit={handleCreatePatientSubmit} className="p-6 space-y-4 text-xs">
+                
+                {patientError && (
+                  <div className="bg-rose-50 border-l-4 border-rose-500 p-3 rounded text-rose-700">
+                    <div className="flex gap-2 items-center">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <p className="font-bold text-[11px]">{patientError}</p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="space-y-1">
                   <label className="block font-bold text-slate-400 uppercase">Nombre Completo del Paciente</label>

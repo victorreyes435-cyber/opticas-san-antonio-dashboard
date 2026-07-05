@@ -72,7 +72,7 @@ async function seedCollectionIfEmpty<T extends { id: string }>(
         try {
           await setDoc(doc(db, collectionName, item.id), item);
         } catch (writeError) {
-          handleFirestoreError(writeError, OperationType.WRITE, `${collectionName}/${item.id}`);
+          console.warn(`Could not seed item in ${collectionName}:`, writeError);
         }
       }
       return initialData;
@@ -80,7 +80,8 @@ async function seedCollectionIfEmpty<T extends { id: string }>(
     
     return snapshot.docs.map(doc => doc.data() as T);
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, collectionName);
+    console.warn(`Firestore getDocs failed for "${collectionName}" (likely offline or network issue). Falling back to initial local data:`, error);
+    return initialData;
   }
 }
 
@@ -179,12 +180,19 @@ export const firebaseService = {
         try {
           await setDoc(docRef, defaultProfile);
         } catch (writeErr) {
-          handleFirestoreError(writeErr, OperationType.WRITE, `users/${uid}`);
+          console.warn(`Could not set user profile in Firestore:`, writeErr);
         }
         return defaultProfile;
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+      console.warn(`Firestore getDoc failed for user profile (likely offline). Falling back to default profile:`, error);
+      return {
+        id: uid,
+        email: auth.currentUser?.email || 'dr.miller@optica.com',
+        name: auth.currentUser?.displayName || 'Dr. S. Miller',
+        role: 'Tecnólogo Médico',
+        avatar: auth.currentUser?.photoURL || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
+      };
     }
   },
 
@@ -204,7 +212,8 @@ export const firebaseService = {
       }
       return snapshot.docs.map(doc => doc.data() as UserProfile);
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'users');
+      console.warn(`Firestore fetchAllUsers failed (likely offline). Falling back to empty array:`, error);
+      return [];
     }
   },
 
