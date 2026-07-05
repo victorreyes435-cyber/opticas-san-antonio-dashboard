@@ -14,6 +14,14 @@
   --slate-900: #0f172a;
   --slate-950: #020617;
   --white: #ffffff;
+
+  --primary: #4f46e5;
+  --primary-container: #4338ca;
+  --on-primary-container: #fbfcff;
+  --indigo-50: #f5f3ff;
+  --indigo-200: #ddd6fe;
+  --indigo-600: #4f46e5;
+  --indigo-700: #4338ca;
 }
 
 :root.dark {
@@ -29,22 +37,53 @@
   --slate-900: #0a0e1a;
   --slate-950: #05070f;
   --white: #131c2e;
+
+  --primary: #6366f1;
+  --primary-container: #4f46e5;
+  --on-primary-container: #fbfcff;
+  --indigo-50: #1e1b4b;
+  --indigo-200: #4c1d95;
+  --indigo-600: #6366f1;
+  --indigo-700: #4f46e5;
+}
+
+:root.high-contrast {
+  --slate-50: #000000;
+  --slate-100: #000000;
+  --slate-200: #ffffff;
+  --slate-300: #ffffff;
+  --slate-400: #ffff00;
+  --slate-500: #ffffff;
+  --slate-600: #ffff00;
+  --slate-700: #ffffff;
+  --slate-800: #ffffff;
+  --slate-900: #ffffff;
+  --slate-950: #ffffff;
+  --white: #000000;
+
+  --primary: #ffff00;
+  --primary-container: #ffff00;
+  --on-primary-container: #000000;
+  --indigo-50: #000000;
+  --indigo-200: #ffff00;
+  --indigo-600: #ffff00;
+  --indigo-700: #ffff00;
 }
 
 @theme {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   
-  --color-primary: #4f46e5;
-  --color-primary-container: #4338ca;
-  --color-on-primary-container: #fbfcff;
-  --color-indigo-600: #4f46e5;
-  --color-indigo-700: #4338ca;
-  --color-indigo-50: #f5f3ff;
-  --color-[#008CBA]: #4f46e5;
-  --color-[#007399]: #4338ca;
-  --color-[#337AB7]: #6366f1;
-  --color-[#006385]: #4f46e5;
+  --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-indigo-600: var(--indigo-600);
+  --color-indigo-700: var(--indigo-700);
+  --color-indigo-50: var(--indigo-50);
+  --color-[#008CBA]: var(--primary);
+  --color-[#007399]: var(--primary-container);
+  --color-[#337AB7]: var(--primary);
+  --color-[#006385]: var(--primary);
 
   /* Overriding default Tailwind slate and white colors with custom CSS variables */
   --color-slate-50: var(--slate-50);
@@ -159,3 +198,53 @@ body {
     color: black !important;
   }
 }
+
+/* High Contrast custom overrides for maximum legibility */
+html.high-contrast {
+  color-scheme: dark;
+}
+
+html.high-contrast * {
+  border-color: #ffffff !important;
+}
+
+html.high-contrast input,
+html.high-contrast select,
+html.high-contrast textarea {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.high-contrast button {
+  border: 2px solid #ffffff !important;
+}
+
+html.high-contrast .text-indigo-600,
+html.high-contrast .text-indigo-500,
+html.high-contrast .text-indigo-400,
+html.high-contrast .text-primary {
+  color: #ffff00 !important;
+}
+
+html.high-contrast .bg-indigo-600,
+html.high-contrast .bg-indigo-500,
+html.high-contrast .bg-primary {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+}
+
+html.high-contrast .bg-indigo-50 {
+  background-color: #121212 !important;
+  border: 1px solid #ffffff !important;
+}
+
+html.high-contrast .text-slate-400,
+html.high-contrast .text-slate-500 {
+  color: #ffff00 !important;
+}
+
+html.high-contrast svg {
+  stroke: currentColor !important;
+}
+

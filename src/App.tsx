@@ -67,6 +67,11 @@ export default function App() {
     return localStorage.getItem('theme') === 'dark';
   });
 
+  // High contrast mode theme state
+  const [isHighContrast, setIsHighContrast] = useState<boolean>(() => {
+    return localStorage.getItem('highContrast') === 'true';
+  });
+
   const [clinicAddress, setClinicAddress] = useState<string>(() => {
     return localStorage.getItem('clinicAddress') || 'Av. Principal 123, Ciudad Central';
   });
@@ -84,6 +89,16 @@ export default function App() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (isHighContrast) {
+      document.documentElement.classList.add('high-contrast');
+      localStorage.setItem('highContrast', 'true');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+      localStorage.setItem('highContrast', 'false');
+    }
+  }, [isHighContrast]);
 
   useEffect(() => {
     localStorage.setItem('clinicAddress', clinicAddress);
@@ -865,6 +880,33 @@ export default function App() {
                             }`}
                           />
                         </button>
+                      </div>
+
+                      <div className="pt-2 border-t border-dashed border-slate-200 space-y-2 mt-2">
+                        <h5 className="font-bold text-slate-700 flex items-center gap-1.5">
+                          <Eye className="w-4 h-4 text-indigo-600 animate-pulse" />
+                          <span>Accesibilidad (Alto Contraste)</span>
+                        </h5>
+                        <p className="text-slate-400 text-[11px] leading-relaxed">
+                          Ajusta los colores y aumenta el contraste para facilitar la lectura a personas con baja visión o fatiga ocular.
+                        </p>
+                        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                          <span className="font-semibold text-slate-600">
+                            {isHighContrast ? 'Alto Contraste Activado' : 'Contraste Estándar'}
+                          </span>
+                          <button
+                            onClick={() => setIsHighContrast(!isHighContrast)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                              isHighContrast ? 'bg-indigo-600' : 'bg-slate-200'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                isHighContrast ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
