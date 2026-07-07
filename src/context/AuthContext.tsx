@@ -21,35 +21,64 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const mockUser = {
-    uid: 'default-user',
-    email: 'dr.miller@optica.com',
-    displayName: 'Dr. S. Miller',
-    photoURL: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
-    emailVerified: true,
-    isAnonymous: false,
-    metadata: {},
-    providerData: [],
-    refreshToken: '',
-    tenantId: null,
-    delete: async () => {},
-    getIdToken: async () => 'mock-token',
-    getIdTokenResult: async () => ({}) as any,
-    reload: async () => {},
-    toJSON: () => ({}),
-  } as any as User;
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [user] = useState<User | null>(mockUser);
-  const [token] = useState<string | null>('mock-token');
-  const [googleToken, setGoogleToken] = useState<string | null>('mock-google-token');
-  const [loading] = useState(false);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        const firebaseToken = await firebaseUser.getIdToken();
+        setToken(firebaseToken);
+        
+        // Retrieve stored Google ID token if available, otherwise fallback to Firebase Token
+        const storedGoogleToken = localStorage.getItem('google_id_token');
+        if (storedGoogleToken) {
+          setGoogleToken(storedGoogleToken);
+        } else {
+          setGoogleToken(firebaseToken);
+        }
+      } else {
+        setUser(null);
+        setToken(null);
+        setGoogleToken(null);
+        localStorage.removeItem('google_id_token');
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const signIn = async () => {
-    // No-op for bypassed login
+    try {
+      const result = await signInWithPopup(auth, googleAuthProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential) {
+        const idToken = credential.idToken;
+        if (idToken) {
+          setGoogleToken(idToken);
+          localStorage.setItem('google_id_token', idToken);
+        }
+      }
+    } catch (error) {
+      console.error('Google Sign-In failed:', error);
+      throw error;
+    }
   };
 
   const logOut = async () => {
-    // No-op for bypassed login
+    try {
+      await signOut(auth);
+      setUser(null);
+      setToken(null);
+      setGoogleToken(null);
+      localStorage.removeItem('google_id_token');
+    } catch (error) {
+      console.error('Sign-Out failed:', error);
+    }
   };
 
   return (
@@ -66,3 +95,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

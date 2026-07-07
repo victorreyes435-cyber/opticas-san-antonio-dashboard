@@ -21,7 +21,6 @@ import {
   Bell
 } from 'lucide-react';
 import { Appointment, Technologist, Patient } from '../types';
-import { TECHNOLOGISTS } from '../data';
 import { useAuth } from '../context/AuthContext.tsx';
 
 interface AgendaViewProps {
@@ -32,6 +31,7 @@ interface AgendaViewProps {
   onAddAppointmentClick: () => void;
   searchQuery: string;
   triggerToast?: (msg: string, isError?: boolean) => void;
+  technologists: Technologist[];
 }
 
 export default function AgendaView({ 
@@ -41,7 +41,8 @@ export default function AgendaView({
   onOpenPatientChart,
   onAddAppointmentClick,
   searchQuery,
-  triggerToast
+  triggerToast,
+  technologists
 }: AgendaViewProps) {
   const { googleToken, signIn } = useAuth();
   const [gcalEvents, setGcalEvents] = useState<any[]>([]);
@@ -110,7 +111,7 @@ export default function AgendaView({
       const phone = patient ? patient.phone : '';
       setWaPhone(phone);
       
-      const tech = TECHNOLOGISTS.find(t => t.id === selectedAppointment.technologistId) || { name: 'Especialista' };
+      const tech = technologists.find(t => t.id === selectedAppointment.technologistId) || { name: 'Especialista' };
       const apptDate = `${currentDay} de ${capitalizedMonthName} de ${currentYear}`;
       const msg = `Hola *${selectedAppointment.patientName}*, le recordamos su cita programada para el día *${apptDate}* a las *${selectedAppointment.time}* con el especialista *${tech.name}* en *Ópticas San Antonio*. Por favor, confirme su asistencia respondiendo a este mensaje. ¡Le esperamos!`;
       setWaMessage(msg);
@@ -145,7 +146,13 @@ export default function AgendaView({
   };
 
   // Filter States
-  const [selectedTechs, setSelectedTechs] = useState<string[]>(['dr_reynolds', 'sarah_chen']);
+  const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (selectedTechs.length === 0 && technologists.length > 0) {
+      setSelectedTechs(technologists.map(t => t.id));
+    }
+  }, [technologists]);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([
     'Room 1 (OCT)', 
     'Room 2 (Visual Field)', 
@@ -258,7 +265,7 @@ export default function AgendaView({
       {/* LEFT SIDEBAR: Mini Calendar & Filters */}
       <aside className="w-full xl:w-72 shrink-0 flex flex-col gap-6 overflow-y-auto pr-1">
         {/* Dynamic Mini-Calendar */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="liquid-glass p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-800">{capitalizedMonthName} {currentYear}</h3>
             <div className="flex gap-1 text-slate-400">
@@ -306,7 +313,7 @@ export default function AgendaView({
         </div>
 
         {/* GOOGLE CALENDAR SIDEBAR CARD */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="liquid-glass p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-indigo-600" />
@@ -362,12 +369,12 @@ export default function AgendaView({
         </div>
 
         {/* Filters Panel */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-5 shadow-sm">
+        <div className="liquid-glass p-5 space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Filtros</h3>
             <button 
               onClick={() => {
-                setSelectedTechs(['dr_reynolds', 'sarah_chen']);
+                setSelectedTechs(technologists.map(t => t.id));
                 setSelectedRooms(['Room 1 (OCT)', 'Room 2 (Visual Field)', 'Room 3 (Standard)']);
                 setSelectedStatuses(['Confirmed', 'Pending', 'Completed']);
               }}
@@ -381,28 +388,35 @@ export default function AgendaView({
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Tecnólogos</h4>
             <div className="space-y-2.5">
-              {TECHNOLOGISTS.map((tech) => (
-                <label key={tech.id} className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={selectedTechs.includes(tech.id)}
-                    onChange={() => handleTechToggle(tech.id)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4 cursor-pointer"
-                  />
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border ${
-                    tech.id === 'dr_reynolds' 
-                      ? 'bg-indigo-50 text-indigo-600 border-indigo-100' 
-                      : tech.id === 'sarah_chen'
-                      ? 'bg-amber-50 text-amber-800 border-amber-100'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-100'
-                  }`}>
-                    {tech.initials}
-                  </div>
-                  <span className="text-xs text-slate-600 group-hover:text-indigo-600 font-medium transition-colors">
-                    {tech.name}
-                  </span>
-                </label>
-              ))}
+              {technologists.map((tech, idx) => {
+                const colors = [
+                  'bg-indigo-50 text-indigo-600 border-indigo-100',
+                  'bg-amber-50 text-amber-800 border-amber-100',
+                  'bg-emerald-50 text-emerald-800 border-emerald-100',
+                  'bg-rose-50 text-rose-800 border-rose-100',
+                  'bg-purple-50 text-purple-800 border-purple-100'
+                ];
+                const colorClass = colors[idx % colors.length];
+                return (
+                  <label key={tech.id} className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={selectedTechs.includes(tech.id)}
+                      onChange={() => handleTechToggle(tech.id)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4 cursor-pointer"
+                    />
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border ${colorClass}`}>
+                      {tech.initials}
+                    </div>
+                    <span className="text-xs text-slate-600 group-hover:text-indigo-600 font-medium transition-colors">
+                      {tech.name}
+                    </span>
+                  </label>
+                );
+              })}
+              {technologists.length === 0 && (
+                <p className="text-xs text-slate-400 italic">No hay tecnólogos registrados</p>
+              )}
             </div>
           </div>
 
@@ -458,7 +472,7 @@ export default function AgendaView({
       </aside>
 
       {/* RIGHT MEDICAL SCHEDULER */}
-      <div className="flex-1 bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden shadow-sm h-full">
+      <div className="flex-1 liquid-glass flex flex-col overflow-hidden h-full">
         {/* Scheduler Header */}
         <div className="h-16 border-b border-slate-100 flex items-center justify-between px-6 bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-4">
@@ -498,16 +512,16 @@ export default function AgendaView({
               <span className="text-[9px] font-bold text-slate-400 uppercase px-2">Ver Carga de:</span>
               <button
                 type="button"
-                onClick={() => setSelectedTechs(['dr_reynolds', 'sarah_chen', 'marcus_pierce'])}
+                onClick={() => setSelectedTechs(technologists.map(t => t.id))}
                 className={`px-2.5 py-1 text-xs font-bold rounded cursor-pointer transition-all ${
-                  selectedTechs.length === 3
+                  selectedTechs.length === technologists.length
                     ? 'bg-white shadow-sm text-indigo-600'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 Todos
               </button>
-              {TECHNOLOGISTS.map((tech) => (
+              {technologists.map((tech) => (
                 <button
                   key={tech.id}
                   type="button"
@@ -518,7 +532,7 @@ export default function AgendaView({
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  {tech.id === 'dr_reynolds' ? 'Dr. Reynolds' : tech.id === 'sarah_chen' ? 'Dra. Chen' : tech.name}
+                  {tech.name}
                 </button>
               ))}
             </div>
@@ -557,9 +571,10 @@ export default function AgendaView({
             {/* Dynamic Provider Columns */}
             <div className="flex-grow flex-1 grid divide-x divide-slate-200" style={{ gridTemplateColumns: `repeat(${selectedTechs.length || 1}, minmax(0, 1fr))` }}>
               {selectedTechs.map((techId) => {
-                const tech = TECHNOLOGISTS.find(t => t.id === techId);
+                const tech = technologists.find(t => t.id === techId);
                 if (!tech) return null;
-                const roomName = techId === 'dr_reynolds' ? 'Sala 1 (OCT)' : techId === 'sarah_chen' ? 'Sala 2 (Campo Visual)' : 'Sala 3 (Estándar)';
+                const techIdx = technologists.findIndex(t => t.id === techId);
+                const roomName = techIdx === 0 ? 'Sala 1 (OCT)' : techIdx === 1 ? 'Sala 2 (Campo Visual)' : 'Sala 3 (Estándar)';
                 return (
                   <div key={techId} className="p-3 text-center">
                     <div className="text-xs font-bold text-slate-800">{tech.name}</div>

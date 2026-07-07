@@ -79,29 +79,7 @@ export const INITIAL_PATIENTS: Patient[] = [
   }
 ];
 
-export const TECHNOLOGISTS: Technologist[] = [
-  {
-    id: 'dr_reynolds',
-    name: 'Dr. Reynolds',
-    initials: 'DR',
-    role: 'Oftalmólogo',
-    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'sarah_chen',
-    name: 'Dra. Sarah Chen (OD)',
-    initials: 'SC',
-    role: 'Optometrista',
-    avatar: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?w=150&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 'marcus_pierce',
-    name: 'Marcus Pierce',
-    initials: 'MP',
-    role: 'Asistente Clínico',
-    avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=150&auto=format&fit=crop&q=80'
-  }
-];
+export const TECHNOLOGISTS: Technologist[] = [];
 
 export const INITIAL_PRESCRIPTIONS: Prescription[] = [
   {
@@ -186,7 +164,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientName: 'Robert Jenkins',
     reason: 'Examen Completo',
     status: 'ARRIVED',
-    technologistId: 'dr_reynolds',
+    technologistId: 'default-user',
     room: 'Sala 1 (OCT)',
     priority: 'Normal'
   },
@@ -197,7 +175,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientName: 'Sarah Lewis',
     reason: 'Seguimiento de Glaucoma',
     status: 'CHECKING IN',
-    technologistId: 'sarah_chen',
+    technologistId: 'default-user',
     room: 'Sala 2 (Campo Visual)',
     priority: 'Normal'
   },
@@ -208,7 +186,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientName: 'Marcus Chen',
     reason: 'Adaptación de Lentes de Contacto',
     status: 'SCHEDULED',
-    technologistId: 'marcus_pierce',
+    technologistId: 'default-user',
     room: 'Sala 3 (Estándar)',
     priority: 'Normal'
   },
@@ -219,7 +197,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientName: 'Emily White',
     reason: 'Evaluación de Ojo Seco',
     status: 'SCHEDULED',
-    technologistId: 'dr_reynolds',
+    technologistId: 'default-user',
     room: 'Sala 1 (OCT)',
     priority: 'Normal'
   }

@@ -246,7 +246,7 @@ export default function PrescriptionsView({
         <div className="xl:col-span-8 space-y-6">
           
           {/* Patient Details Selection Block */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div className="liquid-glass p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Detalles del Paciente</h3>
               <div className="flex items-center gap-2">
@@ -295,7 +295,7 @@ export default function PrescriptionsView({
           </div>
 
           {/* Refraction Data Inputs (OD/OS) */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="liquid-glass overflow-hidden">
             <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-indigo-600" />
@@ -461,7 +461,7 @@ export default function PrescriptionsView({
           </div>
 
           {/* Lens Type & Options Coatings Box */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div className="liquid-glass p-6">
             <h3 className="text-sm font-bold text-slate-800 mb-4">Especificaciones de la Lente</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
@@ -644,11 +644,11 @@ export default function PrescriptionsView({
             className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer hover:shadow-md active:scale-98"
           >
             <Printer className="w-4 h-4" />
-            <span>Imprimir Receta Física</span>
+            <span>Imprimir Receta</span>
           </button>
 
           {/* Recent Rx list (Spans underneath preview) */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="liquid-glass overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Recetas Emitidas Recientes</h3>
               <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-100">Todo el Historial</span>

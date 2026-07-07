@@ -21,7 +21,7 @@ import {
   TrendingUp,
   Activity
 } from 'lucide-react';
-import { Appointment, Patient } from '../types';
+import { Appointment, Patient, Technologist } from '../types';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -49,6 +49,7 @@ interface DashboardViewProps {
     name: string;
     role: string;
   };
+  technologists: Technologist[];
 }
 
 export default function DashboardView({ 
@@ -58,7 +59,8 @@ export default function DashboardView({
   onAddPatientClick,
   onAddAppointmentClick,
   searchQuery,
-  userProfile
+  userProfile,
+  technologists
 }: DashboardViewProps) {
   const todayDateObj = new Date();
   const currentYear = todayDateObj.getFullYear();
@@ -90,11 +92,8 @@ export default function DashboardView({
     const phone = patient ? patient.phone : '';
     setWaPhone(phone);
     
-    const techName = app.technologistId === 'dr_reynolds' 
-      ? 'Dr. Reynolds' 
-      : app.technologistId === 'sarah_chen' 
-      ? 'Dra. Sarah Chen (OD)' 
-      : 'Especialista';
+    const tech = technologists.find(t => t.id === app.technologistId);
+    const techName = tech ? tech.name : 'Especialista';
       
     const apptDate = `${selectedDay} de ${capitalizedMonthName} de ${currentYear}`;
     const msg = `Hola *${app.patientName}*, le recordamos su cita programada para el día *${apptDate}* a las *${app.time}* con el especialista *${techName}* en *Ópticas San Antonio*. Por favor, confirme su asistencia respondiendo a este mensaje. ¡Le esperamos!`;
@@ -123,29 +122,17 @@ export default function DashboardView({
   }, {} as Record<string, number>);
 
   // Dynamic specialist data merged with typical historical data for display
-  const specialistData = [
-    { 
-      name: 'Dr. Reynolds', 
-      citas: (techCounts['dr_reynolds'] || 0) + 24, 
-      departamento: 'Oftalmología', 
-      color: '#6366f1',
-      colorLight: '#e0e7ff'
-    },
-    { 
-      name: 'Dra. S. Chen', 
-      citas: (techCounts['sarah_chen'] || 0) + 31, 
-      departamento: 'Optometría', 
-      color: '#10b981',
-      colorLight: '#d1fae5'
-    },
-    { 
-      name: 'Marcus Pierce', 
-      citas: (techCounts['marcus_pierce'] || 0) + 18, 
-      departamento: 'Asistencia', 
-      color: '#a855f7',
-      colorLight: '#f3e8ff'
-    },
-  ];
+  const specialistData = technologists.map((tech, idx) => {
+    const colors = ['#6366f1', '#10b981', '#a855f7', '#f59e0b', '#ec4899'];
+    const lightColors = ['#e0e7ff', '#d1fae5', '#f3e8ff', '#fef3c7', '#fce7f3'];
+    return {
+      name: tech.name,
+      citas: (techCounts[tech.id] || 0) + (15 + (idx * 5)),
+      departamento: tech.role,
+      color: colors[idx % colors.length],
+      colorLight: lightColors[idx % lightColors.length]
+    };
+  });
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -409,7 +396,7 @@ export default function DashboardView({
         {/* Stats Columns (Spans 8 cols) */}
         <div className="xl:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Stat Card 1: Today Appointments */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="liquid-glass p-6 flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
               <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
                 <Calendar className="w-5 h-5 text-indigo-600" />
@@ -423,7 +410,7 @@ export default function DashboardView({
           </div>
 
           {/* Stat Card 2: New Patients This Week */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="liquid-glass p-6 flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
               <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
                 <Users className="w-5 h-5 text-indigo-600" />
@@ -437,7 +424,7 @@ export default function DashboardView({
           </div>
 
           {/* Stat Card 3: Pending Rx Review */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between relative overflow-hidden">
+          <div className="liquid-glass p-6 flex flex-col justify-between relative overflow-hidden">
             {/* Soft decorative striped warning pattern on background */}
             <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
               backgroundImage: 'repeating-linear-gradient(45deg, #FFC107 25%, transparent 25%, transparent 75%, #FFC107 75%, #FFC107)',
@@ -458,7 +445,7 @@ export default function DashboardView({
         </div>
 
         {/* Mini Calendar (Spans 4 cols) */}
-        <div className="xl:col-span-4 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="xl:col-span-4 liquid-glass p-5">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-bold text-slate-800">{capitalizedMonthName} {currentYear}</h3>
             <div className="flex space-x-1 text-slate-400">
@@ -520,7 +507,7 @@ export default function DashboardView({
       {/* Visualizaciones de Datos de la Clínica */}
       <div className="grid grid-cols-1 gap-6">
         {/* Card 2: Citas por Especialista / Departamento */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+        <div className="liquid-glass p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -571,7 +558,7 @@ export default function DashboardView({
       {/* Grid: Main Agenda & Side Alerts */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Today's Agenda (Spans 8 cols) */}
-        <div className="xl:col-span-8 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div className="xl:col-span-8 liquid-glass overflow-hidden flex flex-col">
           <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
@@ -675,51 +662,6 @@ export default function DashboardView({
 
         {/* Action Required & Alerts (Spans 4 cols) */}
         <div className="xl:col-span-4 flex flex-col gap-6">
-          {/* Action Required Box */}
-          <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-5 shadow-sm">
-            <h4 className="font-bold text-amber-800 text-sm mb-3.5 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Acción Requerida</span>
-            </h4>
-            <ul className="space-y-4">
-              <li className="flex items-start justify-between gap-4">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-bold text-slate-800">Revisar Resultados de Lab</p>
-                  <p className="text-[10px] text-slate-500">T. Higgins - Escaneo OCT</p>
-                </div>
-                <button
-                  disabled={labReviewed}
-                  onClick={handleReviewLab}
-                  className={`text-xs font-bold px-3 py-1 rounded transition-all border ${
-                    labReviewed
-                      ? 'text-slate-400 bg-slate-100 border-slate-200 cursor-not-allowed'
-                      : 'text-indigo-600 border-indigo-600/30 bg-white hover:bg-indigo-50 active:scale-95 cursor-pointer font-semibold'
-                  }`}
-                >
-                  {labReviewed ? 'Revisado' : 'Revisar'}
-                </button>
-              </li>
-
-              <li className="flex items-start justify-between gap-4 border-t border-amber-200/50 pt-3.5">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-bold text-slate-800">Firmar Recetas (3)</p>
-                  <p className="text-[10px] text-slate-500">Autorización Pendiente</p>
-                </div>
-                <button
-                  disabled={rxSigned}
-                  onClick={handleSignRx}
-                  className={`text-xs font-bold px-3 py-1 rounded transition-all border ${
-                    rxSigned
-                      ? 'text-slate-400 bg-slate-100 border-slate-200 cursor-not-allowed'
-                      : 'text-indigo-600 border-indigo-600/30 bg-white hover:bg-indigo-50 active:scale-95 cursor-pointer font-semibold'
-                  }`}
-                >
-                  {rxSigned ? 'Firmado' : 'Firmar'}
-                </button>
-              </li>
-            </ul>
-          </div>
-
           {/* System Status Banner */}
           <div className="bg-gradient-to-br from-indigo-50/50 to-indigo-100/30 border border-indigo-100 rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">

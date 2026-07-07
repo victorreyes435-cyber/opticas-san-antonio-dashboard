@@ -248,3 +248,24 @@ html.high-contrast svg {
   stroke: currentColor !important;
 }
 
+/* Liquid Glass Panel Styles */
+.liquid-glass {
+  background: color-mix(in srgb, var(--white) 80%, transparent) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid color-mix(in srgb, var(--slate-200) 45%, transparent) !important;
+  box-shadow: 
+    0 8px 32px 0 rgba(31, 38, 135, 0.04),
+    inset 0 1px 1px 0 color-mix(in srgb, var(--white) 40%, transparent) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.liquid-glass:hover {
+  background: color-mix(in srgb, var(--white) 90%, transparent) !important;
+  border-color: color-mix(in srgb, var(--slate-200) 65%, transparent) !important;
+  box-shadow: 
+    0 12px 40px 0 rgba(31, 38, 135, 0.08),
+    inset 0 1px 1.5px 0 color-mix(in srgb, var(--white) 60%, transparent) !important;
+}
+
+

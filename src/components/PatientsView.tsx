@@ -155,7 +155,7 @@ export default function PatientsView({
 
   if (patients.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center w-full max-w-md mx-auto bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
+      <div className="flex flex-col items-center justify-center py-20 text-center w-full max-w-md mx-auto liquid-glass p-8">
         <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-4">
           <BookOpen className="w-6 h-6 text-slate-400" />
         </div>
@@ -180,7 +180,7 @@ export default function PatientsView({
       <aside className="w-full xl:w-80 shrink-0 flex flex-col gap-6">
         
         {/* Patient Selection Dropdown */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <div className="liquid-glass p-4">
           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Seleccionar Paciente Activo</label>
           <div className="flex gap-2">
             <select
@@ -203,7 +203,7 @@ export default function PatientsView({
         </div>
 
         {/* Profile Card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center text-center shadow-sm">
+        <div className="liquid-glass p-6 flex flex-col items-center text-center">
           <img
             alt={currentPatient.name}
             className="w-24 h-24 rounded-full object-cover mb-4 border-2 border-slate-100 shadow-sm"
@@ -244,7 +244,7 @@ export default function PatientsView({
         </div>
 
         {/* Morbid Antecedents */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="liquid-glass p-5">
           <h4 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
             <span>Antecedentes Médicos</span>
@@ -283,7 +283,7 @@ export default function PatientsView({
       {/* MAIN ENCOUNTER WORKSPACE */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
         {/* Action Bar / Patient Detail Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 liquid-glass p-4 print:hidden">
           <div className="flex items-center gap-3">
             <span className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
               <FileText className="w-5 h-5" />
@@ -497,7 +497,7 @@ export default function PatientsView({
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
             Historial de Visitas
           </h3>
-          <div className="bg-white border border-slate-200 rounded-xl p-6 relative shadow-sm">
+          <div className="liquid-glass p-6 relative">
             {/* Timeline center rail connector */}
             <div className="absolute left-[31px] top-8 bottom-8 w-0.5 bg-slate-100"></div>
             

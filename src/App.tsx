@@ -34,14 +34,14 @@ import DriveView from './components/DriveView';
 import ContactsView from './components/ContactsView';
 
 import { INITIAL_PATIENTS, INITIAL_APPOINTMENTS, INITIAL_PRESCRIPTIONS, VISIT_HISTORY } from './data';
-import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile } from './types';
+import { Patient, Appointment, Prescription, VisitHistoryItem, UserProfile, Technologist } from './types';
 import { useAuth } from './context/AuthContext.tsx';
 import { firebaseService, handleFirestoreError, OperationType } from './lib/firebaseService';
 import { onSnapshot, collection, doc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 
 export default function App() {
-  const { user, token, loading, signIn, logOut } = useAuth();
+  const { user, token, googleToken, loading, signIn, logOut } = useAuth();
 
   // Authentication UI State
   const [authError, setAuthError] = useState<string | null>(null);
@@ -131,6 +131,27 @@ export default function App() {
   });
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
+  const technologistsList: Technologist[] = allUsers
+    .filter(u => u.role === 'Tecnólogo Médico')
+    .map(u => ({
+      id: u.id || 'unknown',
+      name: u.name,
+      initials: u.name.split(' ').map(n => n[0]).join('').substring(0, 3).toUpperCase() || 'TM',
+      role: u.role,
+      avatar: u.avatar
+    }));
+
+  // Fallback to ensure there is always at least one technologist
+  if (technologistsList.length === 0) {
+    technologistsList.push({
+      id: userProfile.id || 'default-user',
+      name: userProfile.name,
+      initials: userProfile.name.split(' ').map(n => n[0]).join('').substring(0, 3).toUpperCase() || 'TM',
+      role: userProfile.role,
+      avatar: userProfile.avatar
+    });
+  }
+
   // Refs to always access the latest state in asynchronous closures and prevent stale updates
   const patientsRef = useRef(patients);
   const appointmentsRef = useRef(appointments);
@@ -194,8 +215,15 @@ export default function App() {
   });
   const [newAppTime, setNewAppTime] = useState('11:30 AM');
   const [newAppReason, setNewAppReason] = useState('Comprehensive Exam');
-  const [newAppTech, setNewAppTech] = useState('dr_reynolds');
+  const [newAppTech, setNewAppTech] = useState('');
   const [newAppRoom, setNewAppRoom] = useState('Room 1 (OCT)');
+
+  // Keep newAppTech in sync with first technologist when list loads
+  useEffect(() => {
+    if ((newAppTech === '' || newAppTech === 'dr_reynolds' || !technologistsList.some(t => t.id === newAppTech)) && technologistsList.length > 0) {
+      setNewAppTech(technologistsList[0].id);
+    }
+  }, [technologistsList, newAppTech]);
   const [newAppPriority, setNewAppPriority] = useState<'High' | 'Normal'>('Normal');
 
   // New Patient Form state
@@ -237,10 +265,31 @@ export default function App() {
     const setupSync = async () => {
       try {
         const uid = user?.uid || 'default-user';
+        const authHeaderToken = googleToken || token || 'mock-token';
+
+        // Fetch/register user profile via Postgres backend
+        let profileRes: UserProfile;
+        try {
+          const profileResponse = await fetch('/api/profile', {
+            headers: {
+              'Authorization': `Bearer ${authHeaderToken}`
+            }
+          });
+          if (profileResponse.ok) {
+            profileRes = await profileResponse.json();
+            // Sync/cache in Firestore for offline resilience and client-side listener compatibility
+            await firebaseService.saveUserProfile(profileRes.id || uid, profileRes);
+          } else {
+            console.warn('Backend profile fetch failed, falling back to Firestore');
+            profileRes = await firebaseService.fetchUserProfile(uid);
+          }
+        } catch (backendError) {
+          console.error('Failed to connect to backend user API, falling back to Firestore:', backendError);
+          profileRes = await firebaseService.fetchUserProfile(uid);
+        }
         
         // Seed first if collections are empty (using the existing firebaseService loaders)
-        const [profileRes, patientsRes, apptsRes, prescriptionsRes, visitRes, usersRes] = await Promise.all([
-          firebaseService.fetchUserProfile(uid),
+        const [patientsRes, apptsRes, prescriptionsRes, visitRes, usersRes] = await Promise.all([
           firebaseService.fetchPatients(),
           firebaseService.fetchAppointments(),
           firebaseService.fetchPrescriptions(),
@@ -612,6 +661,21 @@ export default function App() {
         avatar: newUserAvatar
       };
 
+      // Register collaborator in Postgres SQL database
+      try {
+        const authHeaderToken = googleToken || token || 'mock-token';
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authHeaderToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+      } catch (backendError) {
+        console.warn('Failed to register collaborator in Postgres database, proceeding with Firestore:', backendError);
+      }
+
       await firebaseService.saveNewUser(payload);
       setAllUsers(prev => [...prev, payload]);
       
@@ -752,6 +816,7 @@ export default function App() {
                   }}
                   searchQuery={searchQuery}
                   userProfile={userProfile}
+                  technologists={technologistsList}
                 />
               </motion.div>
             )}
@@ -778,6 +843,7 @@ export default function App() {
                   }}
                   searchQuery={searchQuery}
                   triggerToast={triggerToast}
+                  technologists={technologistsList}
                 />
               </motion.div>
             )}
@@ -1267,9 +1333,9 @@ export default function App() {
                       onChange={(e) => setNewAppTech(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 px-3 font-semibold text-gray-700 focus:outline-none"
                     >
-                      <option value="dr_reynolds">Dr. Reynolds</option>
-                      <option value="sarah_chen">Sarah Chen (OD)</option>
-                      <option value="marcus_pierce">Marcus Pierce</option>
+                      {technologistsList.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
