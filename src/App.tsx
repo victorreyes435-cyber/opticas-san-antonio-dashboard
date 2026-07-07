@@ -54,8 +54,10 @@ export default function App() {
       await signIn();
       triggerToast('¡Sesión iniciada con éxito!');
     } catch (err: any) {
-      console.error(err);
-      setAuthError('No se pudo iniciar sesión con Google. Inténtalo de nuevo.');
+      console.error('Sign-in error:', err);
+      const errorCode = err?.code || 'auth/unknown-error';
+      const errorMessage = err?.message || 'Error desconocido';
+      setAuthError(`No se pudo iniciar sesión con Google (${errorCode}): ${errorMessage}. Por favor, verifica que los dominios de la aplicación estén autorizados.`);
     } finally {
       setIsAuthSubmitting(false);
     }
